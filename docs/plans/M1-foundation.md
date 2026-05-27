@@ -6,9 +6,11 @@
 
 **Architecture:** Nuxt 3 monolith, Postgres qua Docker Compose, Prisma ORM. Action layer + middleware auth + cookie session. Sau M1 sẽ có "trang trắng" sau khi login — chưa có business logic, đó là M2 trở đi.
 
-**Tech Stack:** Node 24, Nuxt 3, TypeScript strict, Prisma 5, PostgreSQL 15, Zod, bcrypt, pino, Nuxt UI v3, vitest, pnpm.
+**Tech Stack:** Node 24, **Nuxt 4** (4.x backward-compatible with Nuxt 3 codebase), TypeScript strict, Prisma 5, PostgreSQL 15, Zod, bcrypt, pino, Nuxt UI v3, vitest 4, pnpm 9.
 
 **Reference docs:** `docs/implementation-plan.md` (blueprint), `docs/overview.md` (high-level).
+
+> **Note about Nuxt 4:** Nuxt 4 default expects source in `app/` directory but auto-detects legacy layout (root-level `pages/`, `components/`, `composables/`, `middleware/`). Plan continues to use legacy layout (root-level dirs) — works on Nuxt 4 without changes via `future.compatibilityVersion: 3` or by explicitly setting `srcDir`. nuxt.config in Task 3 has appropriate setting.
 
 **Acceptance criteria (toàn M1):**
 - [ ] `pnpm install && docker compose up -d && pnpm prisma migrate dev && pnpm seed && pnpm dev` chạy được từ máy mới.

@@ -1,1 +1,38 @@
 .kiro
+
+# Node
+node_modules/
+.output/
+.nuxt/
+.nitro/
+.cache/
+dist/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Storage
+storage/uploads/
+backups/
+
+# Prisma
+prisma/migrations/dev.db*
+
+# Test
+coverage/
+.vitest-cache/
