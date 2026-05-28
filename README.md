@@ -36,6 +36,22 @@ Login với email và password được in ra console khi seed.
 - `pnpm test` — vitest run
 - `pnpm prisma:studio` — DB GUI tại http://localhost:5555
 
+## ⚠️ Note: integration tests use the dev database
+
+Integration tests (`tests/integration/**`) run against the **same** Postgres
+database as development. They use `prisma.X.deleteMany()` to reset state in
+`beforeEach` blocks — meaning **running `pnpm test` will wipe seeded data**.
+
+If you ran tests and your admin user / sample data is gone:
+
+```bash
+pnpm seed                   # re-creates admin + default sizes
+```
+
+Future improvement (post-M1): switch tests to a dedicated test schema, or
+wrap each test in a transaction that rolls back. For Phase 1 / single-dev
+workflow this is acceptable.
+
 ## Project structure
 
 Xem `docs/implementation-plan.md` mục 4.
