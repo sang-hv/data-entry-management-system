@@ -1,0 +1,328 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== Enums ==========
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum OrderStatus {
+  DRAFT // Mới tạo, chưa chốt thông tin
+  CONFIRMED // Đã chốt đơn (size + tỉ lệ + có ít nhất 1 batch)
+  IN_PRODUCTION // Đang sản xuất
+  QC // Đang kiểm hàng
+  READY // Sẵn sàng giao
+  DELIVERED // Đã giao
+  CANCELLED // Hủy
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AlertSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  DISMISSED
+  RESOLVED
+  SNOOZED
+}
+
+// ========== Identity ==========
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(ADMIN)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  ownedOrders Order[]       @relation("OrderOwner")
+  uploads     Attachment[]
+  updates     OrderUpdate[]
+  auditLogs   AuditLog[]
+  sessions    Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ========== Master data: Style + Variant ==========
+
+model Style {
+  id          String    @id @default(uuid())
+  code        String    @unique // VD: AO083
+  name        String // VD: "Áo polo cổ bẻ"
+  description String?   @db.Text
+  metadata    Json?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  variants StyleVariant[]
+
+  @@index([active])
+  @@index([deletedAt])
+}
+
+model StyleVariant {
+  id        String    @id @default(uuid())
+  styleId   String
+  style     Style     @relation(fields: [styleId], references: [id])
+  // Hậu tố variant. VD "TRANG KE XANH". Display: "{style.code}-{name}".
+  name      String
+  imageUrl  String? // tương đối hoặc URL đầy đủ
+  color     String?
+  active    Boolean   @default(true)
+  metadata  Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orders Order[]
+
+  @@unique([styleId, name])
+  @@index([active])
+  @@index([deletedAt])
+}
+
+// ========== Master data: Size ==========
+
+model Size {
+  id        String    @id @default(uuid())
+  code      String    @unique // S, M, L, XL, XXL, XS, XXXL, ...
+  label     String // hiển thị: "Áo S"
+  order     Int       @default(0) // thứ tự hiển thị (S=10, M=20, L=30, XL=40, XXL=50)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  orderItems OrderItem[]
+  batchItems BatchItem[]
+
+  @@index([active, order])
+  @@index([deletedAt])
+}
+
+// ========== Core: Order ==========
+
+model Order {
+  id             String       @id @default(uuid())
+  code           String       @unique // TN150501
+  styleVariantId String
+  styleVariant   StyleVariant @relation(fields: [styleVariantId], references: [id])
+  ownerId        String
+  owner          User         @relation("OrderOwner", fields: [ownerId], references: [id])
+
+  status   OrderStatus @default(DRAFT)
+  priority Priority    @default(NORMAL)
+
+  orderedAt  DateTime? // Ngày đặt hàng (từ Excel)
+  expectedAt DateTime? // Deadline giao
+  actualAt   DateTime? // Ngày giao thực tế
+
+  notes    String? @db.Text
+  metadata Json?
+
+  version Int @default(0) // optimistic locking
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  items       OrderItem[]
+  batches     OrderBatch[]
+  updates     OrderUpdate[]
+  attachments Attachment[]
+  alerts      Alert[]
+
+  @@index([status, expectedAt])
+  @@index([ownerId])
+  @@index([deletedAt])
+  @@index([code])
+  @@index([orderedAt])
+}
+
+// 1 OrderItem = 1 dòng "size + tỉ lệ" của order
+model OrderItem {
+  id      String  @id @default(uuid())
+  orderId String
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sizeId  String
+  size    Size    @relation(fields: [sizeId], references: [id])
+  ratio   Int     @default(0) // tỉ lệ nhập (3, 3, 2, 1, 1)
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, sizeId])
+  @@index([orderId])
+}
+
+// 1 OrderBatch = 1 đợt chốt nhập của order
+model OrderBatch {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batchNumber Int // 1, 2, 3 — tự tăng theo order
+  batchedAt   DateTime @default(now()) // ngày chốt nhập
+  note        String?
+  metadata    Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  items BatchItem[]
+
+  @@unique([orderId, batchNumber])
+  @@index([orderId, batchedAt])
+  @@index([deletedAt])
+}
+
+// 1 BatchItem = 1 dòng "size + qty" trong 1 batch
+model BatchItem {
+  id       String     @id @default(uuid())
+  batchId  String
+  batch    OrderBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sizeId   String
+  size     Size       @relation(fields: [sizeId], references: [id])
+  quantity Int        @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([batchId, sizeId])
+  @@index([batchId])
+}
+
+// ========== History ==========
+
+model OrderUpdate {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  String?
+  toStatus    String?
+  note        String?  @db.Text
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  source      String   @default("ui")
+
+  @@index([orderId, createdAt])
+}
+
+// ========== Alerts ==========
+
+model Alert {
+  id              String        @id @default(uuid())
+  orderId         String
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ruleCode        String
+  severity        AlertSeverity
+  message         String
+  dataSnapshot    Json?
+  status          AlertStatus   @default(OPEN)
+  triggeredAt     DateTime      @default(now())
+  resolvedAt      DateTime?
+  snoozeUntil     DateTime?
+  dismissedReason String?
+
+  @@unique([orderId, ruleCode, status], name: "uniq_open_alert")
+  @@index([status, severity])
+  @@index([orderId, status])
+}
+
+// ========== Attachments ==========
+
+model Attachment {
+  id           String    @id @default(uuid())
+  orderId      String?
+  order        Order?    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // attachment có thể gắn vào StyleVariant cho ảnh mẫu, hoặc Order cho file đính kèm
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String
+  uploadedById String
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  @@index([orderId])
+}
+
+// ========== Cross-cutting ==========
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  source     String // ui | api | mcp | system
+  action     String // "order.create", "batch.update", ...
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model IdempotencyKey {
+  key          String   @id
+  action       String
+  responseHash String
+  responseJson Json
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}
+
+model OrderCodeCounter {
+  // counter theo prefix tùy người dùng cấu hình. VD prefix "TN-20260515", value=N
+  prefix String @id
+  value  Int    @default(0)
+}
