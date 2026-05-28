@@ -1,18 +1,13 @@
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '~/server/lib/prisma'
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __prisma: PrismaClient | undefined
-}
+// Nitro plugin: re-export ensures the singleton client is initialized at
+// server boot. Tests import from `~/server/lib/prisma` directly to avoid
+// requiring Nuxt's `defineNitroPlugin` auto-import.
+export default defineNitroPlugin(async (nitroApp) => {
+  // Touch the prisma client so it's instantiated immediately on boot.
+  void prisma
 
-export const prisma = global.__prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-})
-
-if (process.env.NODE_ENV === 'development') {
-  global.__prisma = prisma
-}
-
-export default defineNitroPlugin(() => {
-  // Singleton initialized on import. Plugin ensures it loads at boot.
+  nitroApp.hooks.hook('close', async () => {
+    await prisma.$disconnect()
+  })
 })
