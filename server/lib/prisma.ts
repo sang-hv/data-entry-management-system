@@ -5,7 +5,6 @@ import { PrismaClient } from '@prisma/client'
 // runtime (e.g. when vitest imports this), so we keep this file pure.
 
 declare global {
-  // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined
 }
 
