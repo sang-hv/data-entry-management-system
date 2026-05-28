@@ -1,5 +1,5 @@
-import { authRepo } from '~/server/modules/auth/auth.repo'
-import { getSessionToken } from '~/server/utils/http'
+import { authRepo } from '../modules/auth/auth.repo'
+import { getSessionToken } from '../utils/http'
 
 export default defineEventHandler(async (event) => {
   const token = getSessionToken(event)

@@ -1,4 +1,4 @@
-import { prisma } from '~/server/lib/prisma'
+import { prisma } from '../lib/prisma'
 
 // Nitro plugin: re-export ensures the singleton client is initialized at
 // server boot. Tests import from `~/server/lib/prisma` directly to avoid

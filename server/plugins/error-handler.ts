@@ -1,5 +1,5 @@
-import { ActionError } from '~/server/actions/_base/errors'
-import { logger } from '~/server/lib/logger'
+import { ActionError } from '../actions/_base/errors'
+import { logger } from '../lib/logger'
 
 export default defineNitroPlugin((nitroApp) => {
   nitroApp.hooks.hook('error', (error, ctx) => {

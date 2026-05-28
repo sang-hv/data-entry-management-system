@@ -1,4 +1,4 @@
-import { prisma } from '~/server/lib/prisma'
+import { prisma } from '../../lib/prisma'
 import { hashToken } from './session'
 
 export const authRepo = {

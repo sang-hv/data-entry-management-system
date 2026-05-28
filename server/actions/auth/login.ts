@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import type { ActionContext } from '../_base/context'
 import { UnauthorizedError } from '../_base/errors'
-import { auditRepo } from '~/server/modules/audit/audit.repo'
-import { authRepo } from '~/server/modules/auth/auth.repo'
-import { verifyPassword } from '~/server/modules/auth/password'
-import { generateSessionToken } from '~/server/modules/auth/session'
+import { auditRepo } from '../../modules/audit/audit.repo'
+import { authRepo } from '../../modules/auth/auth.repo'
+import { verifyPassword } from '../../modules/auth/password'
+import { generateSessionToken } from '../../modules/auth/session'
 
 // Accept simple email like "admin@local" (no TLD required) for internal seed accounts.
 // Pattern: <local>@<host> with at least one char on each side.

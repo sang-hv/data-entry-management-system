@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { H3Event } from 'h3'
-import type { ActionContext, Actor } from '~/server/actions/_base/context'
-import { ActionError, UnauthorizedError } from '~/server/actions/_base/errors'
+import type { ActionContext, Actor } from '../actions/_base/context'
+import { ActionError, UnauthorizedError } from '../actions/_base/errors'
 
 const COOKIE_NAME = 'session_token'
 

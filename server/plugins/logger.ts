@@ -1,4 +1,4 @@
-import { logger } from '~/server/lib/logger'
+import { logger } from '../lib/logger'
 
 export default defineNitroPlugin(() => {
   logger.info({ event: 'app.boot' }, 'Application booting')

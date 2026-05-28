@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { ActionContext } from '../_base/context'
-import { auditRepo } from '~/server/modules/audit/audit.repo'
-import { authRepo } from '~/server/modules/auth/auth.repo'
+import { auditRepo } from '../../modules/audit/audit.repo'
+import { authRepo } from '../../modules/auth/auth.repo'
 
 export const LogoutInput = z.object({
   token: z.string().min(1),

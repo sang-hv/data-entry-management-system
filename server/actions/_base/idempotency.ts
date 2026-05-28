@@ -1,4 +1,4 @@
-import { prisma } from '~/server/lib/prisma'
+import { prisma } from '../../lib/prisma'
 import type { ActionContext } from './context'
 
 const TTL_HOURS = 24

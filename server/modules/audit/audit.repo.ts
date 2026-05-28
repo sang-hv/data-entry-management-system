@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '~/server/lib/prisma'
+import { prisma } from '../../lib/prisma'
 
 export interface AuditWriteInput {
   actorId: string | null
