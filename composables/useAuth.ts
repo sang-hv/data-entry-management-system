@@ -12,9 +12,12 @@ export function useAuth() {
 
   async function fetchMe() {
     try {
-      const data = await $fetch<AuthUser>('/api/auth/me')
+      // useRequestFetch() forwards incoming request cookies during SSR.
+      const fetch = useRequestFetch()
+      const data = await fetch<AuthUser>('/api/auth/me')
       user.value = data
-    } catch {
+    }
+    catch {
       user.value = null
     }
   }
