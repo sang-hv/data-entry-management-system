@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { auditRepo } from '~/server/modules/audit/audit.repo'
 import { prisma } from '~/server/lib/prisma'
+import { resetDb } from '../../helpers/db'
 
 describe('auditRepo', () => {
   beforeEach(async () => {
-    await prisma.auditLog.deleteMany()
+    await resetDb()
   })
 
   it('writes an audit entry with all fields', async () => {
@@ -42,7 +43,6 @@ describe('auditRepo', () => {
       after: { v: 1 },
       requestId: 'r1',
     })
-    // Ensure ordering by createdAt is deterministic.
     await new Promise((r) => setTimeout(r, 5))
     await auditRepo.write({
       actorId: null,

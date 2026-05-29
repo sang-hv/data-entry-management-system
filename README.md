@@ -12,6 +12,7 @@ Hệ thống quản lý đơn đặt hàng may mặc nội bộ. Xem chi tiết:
 - pnpm 9
 - Docker + Docker Compose
 - macOS / Linux
+6FB41pv7_IeLGJA1
 
 ## Setup local
 

@@ -3,13 +3,13 @@ import { authRepo } from '~/server/modules/auth/auth.repo'
 import { hashPassword } from '~/server/modules/auth/password'
 import { generateSessionToken, hashToken } from '~/server/modules/auth/session'
 import { prisma } from '~/server/lib/prisma'
+import { resetDb } from '../../../helpers/db'
 
 describe('session', () => {
   let userId: string
 
   beforeEach(async () => {
-    await prisma.session.deleteMany()
-    await prisma.user.deleteMany()
+    await resetDb()
     const u = await prisma.user.create({
       data: {
         email: 'sess@local',

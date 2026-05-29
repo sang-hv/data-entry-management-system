@@ -5,6 +5,7 @@ import { logout } from '~/server/actions/auth/logout'
 import { authRepo } from '~/server/modules/auth/auth.repo'
 import { hashPassword } from '~/server/modules/auth/password'
 import { prisma } from '~/server/lib/prisma'
+import { resetDb } from '../../../helpers/db'
 
 const ctx: ActionContext = {
   actor: null,
@@ -14,9 +15,7 @@ const ctx: ActionContext = {
 
 describe('login action', () => {
   beforeEach(async () => {
-    await prisma.session.deleteMany()
-    await prisma.auditLog.deleteMany()
-    await prisma.user.deleteMany()
+    await resetDb()
     await prisma.user.create({
       data: {
         email: 'admin@local',

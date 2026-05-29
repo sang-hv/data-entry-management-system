@@ -5,36 +5,21 @@ import { deleteSize } from '~/server/actions/sizes/deleteSize'
 import { listSizes } from '~/server/actions/sizes/listSizes'
 import { updateSize } from '~/server/actions/sizes/updateSize'
 import { prisma } from '~/server/lib/prisma'
+import { ensureTestAdmin, resetDb } from '../../helpers/db'
 
-const adminCtx: ActionContext = {
-  actor: { id: 'test-admin', email: 'admin@local', role: 'ADMIN' },
+const baseCtx: ActionContext = {
+  actor: null,
   source: 'ui',
   requestId: 'req-test',
-}
-
-async function withFreshUser(): Promise<ActionContext> {
-  const u = await prisma.user.upsert({
-    where: { email: 'admin@local' },
-    create: {
-      email: 'admin@local',
-      name: 'Admin',
-      passwordHash: 'x',
-      role: 'ADMIN',
-    },
-    update: {},
-  })
-  return { ...adminCtx, actor: { id: u.id, email: u.email, role: u.role } }
 }
 
 describe('sizes actions', () => {
   let ctx: ActionContext
 
   beforeEach(async () => {
-    await prisma.batchItem.deleteMany()
-    await prisma.orderItem.deleteMany()
-    await prisma.size.deleteMany()
-    await prisma.auditLog.deleteMany()
-    ctx = await withFreshUser()
+    await resetDb()
+    const u = await ensureTestAdmin()
+    ctx = { ...baseCtx, actor: { id: u.id, email: u.email, role: u.role } }
   })
 
   describe('createSize', () => {
