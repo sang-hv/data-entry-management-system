@@ -83,8 +83,13 @@ export class LocalDiskStorage implements StorageAdapter {
 }
 
 let _storage: StorageAdapter | undefined
+let _storageBaseDir: string | undefined
 
 export function getStorage(): StorageAdapter {
-  if (!_storage) _storage = new LocalDiskStorage()
+  const desired = process.env.STORAGE_DIR ?? './storage/uploads'
+  if (!_storage || _storageBaseDir !== desired) {
+    _storage = new LocalDiskStorage(desired)
+    _storageBaseDir = desired
+  }
   return _storage
 }
