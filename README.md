@@ -49,6 +49,14 @@ If you ran tests and your admin user / sample data is gone:
 pnpm seed                   # re-creates admin + default sizes
 ```
 
+**Tip:** set `SEED_ADMIN_PASSWORD` in `.env.local` to use a fixed password.
+Each `pnpm seed` will then upsert the admin and reset password to that value
+— useful for recovery after tests, or sharing a known password with a
+teammate. If unset, seed generates a random password (printed once on first
+create only).
+
+Default in `.env.example`: `Admin@Local2026`.
+
 Future improvement (post-M1): switch tests to a dedicated test schema, or
 wrap each test in a transaction that rolls back. For Phase 1 / single-dev
 workflow this is acceptable.
