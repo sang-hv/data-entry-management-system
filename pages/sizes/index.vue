@@ -21,7 +21,7 @@ function openCreate() {
   editing.value = null
   form.code = ''
   form.label = ''
-  form.order = data.value?.items.length ? Math.max(...data.value.items.map(s => s.order)) + 10 : 10
+  form.order = data.value?.items.length ? Math.max(...data.value.items.map((s) => s.order)) + 10 : 10
   dialogOpen.value = true
 }
 
@@ -41,20 +41,20 @@ async function onSubmit() {
         method: 'PATCH',
         body: { patch: { label: form.label, order: form.order } },
       })
-      toast.add({ title: 'Đã cập nhật size', color: 'success' })
+      toast.add({ title: 'Đã cập nhật', color: 'success' })
     }
     else {
       await $fetch('/api/sizes', {
         method: 'POST',
         body: { code: form.code, label: form.label, order: form.order },
       })
-      toast.add({ title: 'Đã tạo size mới', color: 'success' })
+      toast.add({ title: 'Đã tạo size', color: 'success' })
     }
     dialogOpen.value = false
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Có lỗi xảy ra'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
     toast.add({ title: msg, color: 'error' })
   }
   finally {
@@ -71,7 +71,7 @@ async function onToggleActive(row: SizeRow) {
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Có lỗi xảy ra'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
     toast.add({ title: msg, color: 'error' })
   }
 }
@@ -84,73 +84,97 @@ async function onDelete(row: SizeRow) {
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Có lỗi xảy ra'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
     toast.add({ title: msg, color: 'error' })
   }
 }
 </script>
 
 <template>
-  <div class="p-6 max-w-4xl">
-    <header class="flex items-center justify-between mb-6">
+  <div class="p-4 md:p-6 max-w-4xl">
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div>
-        <h1 class="text-2xl font-semibold">
-          Kích cỡ (Sizes)
+        <h1 class="text-xl md:text-2xl font-semibold">
+          Kích cỡ
         </h1>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
           Master data — kích cỡ áo dùng cho mọi đơn hàng
         </p>
       </div>
-      <UButton icon="i-lucide-plus" @click="openCreate">
+      <UButton icon="i-lucide-plus" class="self-start" @click="openCreate">
         Thêm size
       </UButton>
     </header>
 
-    <UCard>
-      <table class="w-full text-sm">
-        <thead class="text-left border-b border-gray-200 dark:border-gray-700">
-          <tr>
-            <th class="px-3 py-2 font-medium">
-              Mã
-            </th>
-            <th class="px-3 py-2 font-medium">
-              Hiển thị
-            </th>
-            <th class="px-3 py-2 font-medium w-24 text-right">
-              Thứ tự
-            </th>
-            <th class="px-3 py-2 font-medium w-24">
-              Hoạt động
-            </th>
-            <th class="px-3 py-2 w-32" />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in data?.items ?? []" :key="row.id" class="border-b border-gray-100 dark:border-gray-700">
-            <td class="px-3 py-2 font-mono">
-              {{ row.code }}
-            </td>
-            <td class="px-3 py-2">
-              {{ row.label }}
-            </td>
-            <td class="px-3 py-2 text-right tabular-nums">
-              {{ row.order }}
-            </td>
-            <td class="px-3 py-2">
-              <USwitch :model-value="row.active" @update:model-value="onToggleActive(row)" />
-            </td>
-            <td class="px-3 py-2 text-right">
-              <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="openEdit(row)" />
-              <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" @click="onDelete(row)" />
-            </td>
-          </tr>
-          <tr v-if="!(data?.items ?? []).length">
-            <td colspan="5" class="px-3 py-6 text-center text-gray-500">
-              Chưa có size nào
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <!-- Mobile -->
+      <ul class="md:hidden divide-y divide-gray-200 dark:divide-gray-800">
+        <li v-for="row in data?.items ?? []" :key="row.id" class="flex items-center gap-3 p-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-sm font-medium">{{ row.code }}</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ row.label }}</span>
+            </div>
+            <div class="text-xs text-gray-500 mt-0.5">
+              Thứ tự: {{ row.order }}
+            </div>
+          </div>
+          <USwitch :model-value="row.active" @update:model-value="onToggleActive(row)" />
+          <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="openEdit(row)" />
+          <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" @click="onDelete(row)" />
+        </li>
+        <li v-if="!(data?.items ?? []).length" class="p-8 text-center text-sm text-gray-500">
+          Chưa có size nào
+        </li>
+      </ul>
+
+      <!-- Desktop -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="px-4 py-2 font-medium w-32">
+                Mã
+              </th>
+              <th class="px-4 py-2 font-medium">
+                Nhãn hiển thị
+              </th>
+              <th class="px-4 py-2 font-medium w-24 text-right">
+                Thứ tự
+              </th>
+              <th class="px-4 py-2 font-medium w-28">
+                Hoạt động
+              </th>
+              <th class="px-4 py-2 w-24" />
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tr v-for="row in data?.items ?? []" :key="row.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <td class="px-4 py-2 font-mono">
+                {{ row.code }}
+              </td>
+              <td class="px-4 py-2">
+                {{ row.label }}
+              </td>
+              <td class="px-4 py-2 text-right tabular-nums">
+                {{ row.order }}
+              </td>
+              <td class="px-4 py-2">
+                <USwitch :model-value="row.active" @update:model-value="onToggleActive(row)" />
+              </td>
+              <td class="px-4 py-2 text-right">
+                <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="openEdit(row)" />
+                <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" @click="onDelete(row)" />
+              </td>
+            </tr>
+            <tr v-if="!(data?.items ?? []).length">
+              <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">
+                Chưa có size nào
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </UCard>
 
     <UModal v-model:open="dialogOpen" :title="editing ? 'Sửa size' : 'Thêm size mới'">

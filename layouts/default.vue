@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { user, logout } = useAuth()
+const route = useRoute()
 
 const navItems = [
   { label: 'Dashboard', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
@@ -7,42 +8,142 @@ const navItems = [
   { label: 'Mẫu áo', to: '/styles', icon: 'i-lucide-shirt' },
   { label: 'Kích cỡ', to: '/sizes', icon: 'i-lucide-ruler' },
 ]
+
+const drawerOpen = ref(false)
+
+// Close drawer on route change.
+watch(() => route.fullPath, () => {
+  drawerOpen.value = false
+})
+
+const currentPageTitle = computed(() => {
+  const match = navItems.find((n) => route.path.startsWith(n.to))
+  return match?.label ?? 'DEMS'
+})
 </script>
 
 <template>
-  <div class="min-h-screen flex bg-gray-50 dark:bg-gray-900">
-    <aside class="w-56 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div class="font-semibold text-lg">
-          DEMS
-        </div>
-        <div class="text-xs text-gray-500">
-          Quản lý đơn may mặc
-        </div>
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <!-- Mobile top bar -->
+    <header class="md:hidden sticky top-0 z-30 flex items-center gap-2 h-14 px-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <UButton
+        variant="ghost"
+        icon="i-lucide-menu"
+        size="md"
+        aria-label="Mở menu"
+        @click="drawerOpen = true"
+      />
+      <div class="font-semibold">
+        {{ currentPageTitle }}
       </div>
-      <nav class="flex-1 p-2 space-y-1">
-        <NuxtLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="flex items-center gap-2 px-3 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-          active-class="bg-gray-100 dark:bg-gray-700 font-medium"
+      <div class="ml-auto">
+        <UDropdownMenu
+          :items="[[
+            { label: user?.email, type: 'label' as const },
+            { label: 'Đăng xuất', icon: 'i-lucide-log-out', onSelect: logout },
+          ]]"
         >
-          <UIcon :name="item.icon" class="w-4 h-4" />
-          <span>{{ item.label }}</span>
-        </NuxtLink>
-      </nav>
-      <div class="p-3 border-t border-gray-200 dark:border-gray-700">
-        <div class="text-xs text-gray-500 mb-2 truncate">
-          {{ user?.email }}
-        </div>
-        <UButton variant="ghost" size="sm" block icon="i-lucide-log-out" @click="logout">
-          Đăng xuất
-        </UButton>
+          <UButton variant="ghost" size="sm" icon="i-lucide-user" />
+        </UDropdownMenu>
       </div>
-    </aside>
-    <main class="flex-1 overflow-auto">
-      <slot />
-    </main>
+    </header>
+
+    <div class="flex">
+      <!-- Desktop sidebar -->
+      <aside class="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+        <div class="px-4 py-5 border-b border-gray-200 dark:border-gray-800">
+          <div class="font-semibold text-base">
+            DEMS
+          </div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">
+            Quản lý đơn may mặc
+          </div>
+        </div>
+        <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          <NuxtLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+            active-class="!bg-primary-50 dark:!bg-primary-950 !text-primary-700 dark:!text-primary-300 font-medium"
+          >
+            <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
+            <span class="truncate">{{ item.label }}</span>
+          </NuxtLink>
+        </nav>
+        <div class="p-3 border-t border-gray-200 dark:border-gray-800">
+          <UDropdownMenu
+            :items="[[
+              { label: 'Đăng xuất', icon: 'i-lucide-log-out', onSelect: logout },
+            ]]"
+          >
+            <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+              <UAvatar :alt="user?.name ?? 'User'" size="xs" />
+              <div class="flex-1 min-w-0 text-left">
+                <div class="text-sm font-medium truncate">
+                  {{ user?.name }}
+                </div>
+                <div class="text-xs text-gray-500 truncate">
+                  {{ user?.email }}
+                </div>
+              </div>
+              <UIcon name="i-lucide-chevron-up" class="w-4 h-4 text-gray-400" />
+            </button>
+          </UDropdownMenu>
+        </div>
+      </aside>
+
+      <!-- Mobile drawer -->
+      <USlideover v-model:open="drawerOpen" side="left">
+        <template #content>
+          <div class="flex flex-col h-full">
+            <div class="px-4 py-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <div>
+                <div class="font-semibold text-base">
+                  DEMS
+                </div>
+                <div class="text-xs text-gray-500">
+                  Quản lý đơn may mặc
+                </div>
+              </div>
+              <UButton variant="ghost" icon="i-lucide-x" size="sm" @click="drawerOpen = false" />
+            </div>
+            <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+              <NuxtLink
+                v-for="item in navItems"
+                :key="item.to"
+                :to="item.to"
+                class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
+                active-class="!bg-primary-50 dark:!bg-primary-950 !text-primary-700 dark:!text-primary-300 font-medium"
+              >
+                <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
+                <span>{{ item.label }}</span>
+              </NuxtLink>
+            </nav>
+            <div class="p-3 border-t border-gray-200 dark:border-gray-800">
+              <div class="flex items-center gap-2.5 px-3 py-2 mb-1">
+                <UAvatar :alt="user?.name ?? 'User'" size="xs" />
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium truncate">
+                    {{ user?.name }}
+                  </div>
+                  <div class="text-xs text-gray-500 truncate">
+                    {{ user?.email }}
+                  </div>
+                </div>
+              </div>
+              <UButton variant="soft" color="neutral" block icon="i-lucide-log-out" @click="logout">
+                Đăng xuất
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </USlideover>
+
+      <!-- Main content -->
+      <main class="flex-1 md:ml-60 min-w-0">
+        <slot />
+      </main>
+    </div>
   </div>
 </template>

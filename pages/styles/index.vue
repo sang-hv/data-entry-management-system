@@ -60,74 +60,161 @@ async function onDelete(row: StyleRow) {
     toast.add({ title: msg, color: 'error' })
   }
 }
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
 </script>
 
 <template>
-  <div class="p-6 max-w-6xl">
-    <header class="flex items-center justify-between mb-6">
+  <div class="p-4 md:p-6 max-w-6xl">
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div>
-        <h1 class="text-2xl font-semibold">
-          Mẫu áo (Styles)
+        <h1 class="text-xl md:text-2xl font-semibold">
+          Mẫu áo
         </h1>
-        <p class="text-sm text-gray-500">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
           Master data mẫu áo. Mỗi mẫu có nhiều biến thể (màu / họa tiết).
         </p>
       </div>
-      <UButton icon="i-lucide-plus" @click="openCreate">
+      <UButton icon="i-lucide-plus" class="self-start" @click="openCreate">
         Thêm mẫu
       </UButton>
     </header>
 
     <div class="mb-4">
-      <UInput v-model="q" placeholder="Tìm theo mã hoặc tên..." icon="i-lucide-search" class="max-w-md" />
+      <UInput
+        v-model="q"
+        placeholder="Tìm theo mã hoặc tên..."
+        icon="i-lucide-search"
+        class="w-full sm:max-w-md"
+      />
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <UCard
-        v-for="row in data?.items ?? []"
-        :key="row.id"
-        :ui="{ body: 'p-0' }"
-        class="overflow-hidden hover:shadow-md transition cursor-pointer"
-        @click="navigateTo(`/styles/${row.id}`)"
-      >
-        <div class="aspect-square bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-          <img v-if="row.thumbnailUrl" :src="`/storage/${row.thumbnailUrl}`" class="w-full h-full object-cover" alt="">
-          <UIcon v-else name="i-lucide-shirt" class="w-12 h-12 text-gray-400" />
-        </div>
-        <div class="p-4">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <div class="font-mono text-xs text-gray-500">
-                {{ row.code }}
-              </div>
-              <div class="font-medium truncate">
-                {{ row.name }}
-              </div>
+    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <!-- Mobile: stacked rows -->
+      <div class="md:hidden divide-y divide-gray-200 dark:divide-gray-800">
+        <NuxtLink
+          v-for="row in data?.items ?? []"
+          :key="row.id"
+          :to="`/styles/${row.id}`"
+          class="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+        >
+          <div class="w-12 h-12 shrink-0 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+            <img v-if="row.thumbnailUrl" :src="`/storage/${row.thumbnailUrl}`" class="w-full h-full object-cover" alt="">
+            <UIcon v-else name="i-lucide-shirt" class="w-5 h-5 text-gray-400" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-mono text-xs text-gray-500">{{ row.code }}</span>
+              <UBadge v-if="!row.active" variant="soft" color="neutral" size="xs">
+                Đã ẩn
+              </UBadge>
             </div>
-            <UBadge v-if="!row.active" variant="soft" color="neutral" size="sm">
-              Đã ẩn
-            </UBadge>
+            <div class="font-medium truncate">
+              {{ row.name }}
+            </div>
+            <div class="text-xs text-gray-500 mt-0.5">
+              {{ row.variantCount }} biến thể
+            </div>
           </div>
-          <div class="mt-2 text-sm text-gray-500">
-            {{ row.variantCount }} biến thể
-          </div>
-          <div class="mt-3 flex justify-end">
-            <UButton
-              size="xs"
-              variant="ghost"
-              color="error"
-              icon="i-lucide-trash-2"
-              @click.stop="onDelete(row)"
-            />
-          </div>
+          <UIcon name="i-lucide-chevron-right" class="w-4 h-4 text-gray-400" />
+        </NuxtLink>
+        <div v-if="!(data?.items ?? []).length" class="p-8 text-center text-sm text-gray-500">
+          Chưa có mẫu nào
         </div>
-      </UCard>
-      <div v-if="!(data?.items ?? []).length" class="col-span-full text-center text-gray-500 py-12">
-        Chưa có mẫu nào. <UButton variant="link" @click="openCreate">
-          Tạo mẫu đầu tiên
-        </UButton>
       </div>
-    </div>
+
+      <!-- Desktop: table -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th class="px-4 py-2 font-medium w-16">
+                Ảnh
+              </th>
+              <th class="px-4 py-2 font-medium w-32">
+                Mã
+              </th>
+              <th class="px-4 py-2 font-medium">
+                Tên
+              </th>
+              <th class="px-4 py-2 font-medium w-28 text-center">
+                Biến thể
+              </th>
+              <th class="px-4 py-2 font-medium w-24">
+                Trạng thái
+              </th>
+              <th class="px-4 py-2 font-medium w-28">
+                Cập nhật
+              </th>
+              <th class="px-4 py-2 w-20" />
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+            <tr
+              v-for="row in data?.items ?? []"
+              :key="row.id"
+              class="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+              @click="navigateTo(`/styles/${row.id}`)"
+            >
+              <td class="px-4 py-2">
+                <div class="w-10 h-10 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+                  <img v-if="row.thumbnailUrl" :src="`/storage/${row.thumbnailUrl}`" class="w-full h-full object-cover" alt="">
+                  <UIcon v-else name="i-lucide-shirt" class="w-4 h-4 text-gray-400" />
+                </div>
+              </td>
+              <td class="px-4 py-2 font-mono text-xs">
+                {{ row.code }}
+              </td>
+              <td class="px-4 py-2">
+                <div class="font-medium">
+                  {{ row.name }}
+                </div>
+                <div v-if="row.description" class="text-xs text-gray-500 truncate max-w-md">
+                  {{ row.description }}
+                </div>
+              </td>
+              <td class="px-4 py-2 text-center tabular-nums">
+                {{ row.variantCount }}
+              </td>
+              <td class="px-4 py-2">
+                <UBadge v-if="row.active" variant="soft" color="success" size="sm">
+                  Hoạt động
+                </UBadge>
+                <UBadge v-else variant="soft" color="neutral" size="sm">
+                  Đã ẩn
+                </UBadge>
+              </td>
+              <td class="px-4 py-2 text-xs text-gray-500 tabular-nums">
+                {{ formatDate(row.updatedAt) }}
+              </td>
+              <td class="px-4 py-2 text-right">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="error"
+                  icon="i-lucide-trash-2"
+                  @click.stop="onDelete(row)"
+                />
+              </td>
+            </tr>
+            <tr v-if="!(data?.items ?? []).length">
+              <td colspan="7" class="px-4 py-12 text-center text-sm text-gray-500">
+                Chưa có mẫu nào.
+                <UButton variant="link" @click="openCreate">
+                  Tạo mẫu đầu tiên
+                </UButton>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UCard>
 
     <UModal v-model:open="dialogOpen" title="Thêm mẫu áo mới">
       <template #body>
