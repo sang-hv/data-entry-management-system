@@ -18,6 +18,7 @@ interface StyleDetail {
 
 const route = useRoute()
 const toast = useToast()
+const { t } = useI18n()
 const styleId = route.params.id as string
 
 const { data, refresh } = await useFetch<{ style: StyleDetail }>(
@@ -38,14 +39,14 @@ async function createVariant() {
         color: newVariantForm.color || undefined,
       },
     })
-    toast.add({ title: 'Đã tạo biến thể', color: 'success' })
+    toast.add({ title: t('common.messages.created'), color: 'success' })
     newVariantOpen.value = false
     newVariantForm.name = ''
     newVariantForm.color = ''
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
   finally {
@@ -66,11 +67,11 @@ async function uploadImage(variant: Variant, ev: Event) {
       method: 'POST',
       body: fd,
     })
-    toast.add({ title: 'Đã upload ảnh', color: 'success' })
+    toast.add({ title: t('common.messages.uploaded'), color: 'success' })
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
   finally {
@@ -79,27 +80,27 @@ async function uploadImage(variant: Variant, ev: Event) {
 }
 
 async function deleteVariant(variant: Variant) {
-  if (!confirm(`Xóa biến thể "${variant.name}"?`)) return
+  if (!confirm(t('styles.variants.deleteConfirm', { name: variant.name }))) return
   try {
     await $fetch(`/api/variants/${variant.id}`, { method: 'DELETE' })
-    toast.add({ title: 'Đã xóa', color: 'success' })
+    toast.add({ title: t('common.messages.deleted'), color: 'success' })
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
 }
 
 async function deleteStyle() {
-  if (!confirm(`Xóa hẳn mẫu "${data.value?.style.code}"?`)) return
+  if (!confirm(t('styles.deleteHardConfirm', { code: data.value?.style.code ?? '' }))) return
   try {
     await $fetch(`/api/styles/${styleId}`, { method: 'DELETE' })
-    toast.add({ title: 'Đã xóa', color: 'success' })
+    toast.add({ title: t('common.messages.deleted'), color: 'success' })
     await navigateTo('/styles')
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
 }
@@ -114,7 +115,7 @@ async function deleteStyle() {
       class="mb-4"
       @click="navigateTo('/styles')"
     >
-      Quay lại danh sách
+      {{ t('common.actions.backToList') }}
     </UButton>
 
     <header class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
@@ -137,17 +138,17 @@ async function deleteStyle() {
         class="self-start shrink-0"
         @click="deleteStyle"
       >
-        Xóa mẫu
+        {{ t('styles.deleteStyle') }}
       </UButton>
     </header>
 
     <section>
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-base md:text-lg font-medium">
-          Biến thể ({{ data.style.variants.length }})
+          {{ t('styles.variants.title', { count: data.style.variants.length }) }}
         </h2>
         <UButton size="sm" icon="i-lucide-plus" @click="newVariantOpen = true">
-          Thêm
+          {{ t('styles.variants.addVariant') }}
         </UButton>
       </div>
 
@@ -165,7 +166,7 @@ async function deleteStyle() {
               </div>
               <label
                 class="absolute inset-0 flex items-center justify-center bg-black/60 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                title="Upload ảnh"
+                :title="t('common.actions.uploadImage')"
               >
                 <UIcon name="i-lucide-upload" class="w-4 h-4" />
                 <input
@@ -181,16 +182,16 @@ async function deleteStyle() {
                 {{ v.name }}
               </div>
               <div v-if="v.color" class="text-xs text-gray-500">
-                Màu: {{ v.color }}
+                {{ t('styles.variants.colorLabel', { color: v.color }) }}
               </div>
               <UBadge v-if="!v.active" variant="soft" color="neutral" size="xs" class="mt-1">
-                Đã ẩn
+                {{ t('common.labels.inactive') }}
               </UBadge>
             </div>
             <div class="flex items-center gap-1">
               <label
                 class="inline-flex md:hidden items-center justify-center w-8 h-8 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-                title="Upload ảnh"
+                :title="t('common.actions.uploadImage')"
               >
                 <UIcon name="i-lucide-upload" class="w-4 h-4" />
                 <input
@@ -211,33 +212,42 @@ async function deleteStyle() {
           </li>
 
           <li v-if="!data.style.variants.length" class="p-8 text-center text-sm text-gray-500">
-            Chưa có biến thể nào.
+            {{ t('styles.variants.empty') }}.
             <UButton variant="link" @click="newVariantOpen = true">
-              Thêm biến thể đầu tiên
+              {{ t('styles.variants.createFirst') }}
             </UButton>
           </li>
         </ul>
       </UCard>
     </section>
 
-    <UModal v-model:open="newVariantOpen" title="Thêm biến thể">
+    <UModal v-model:open="newVariantOpen" :title="t('styles.variants.createTitle')">
       <template #body>
         <form class="space-y-4" @submit.prevent="createVariant">
-          <UFormField label="Tên biến thể" required>
-            <UInput v-model="newVariantForm.name" required class="w-full" placeholder="TRANG KE XANH" />
+          <UFormField :label="t('styles.variants.fields.name')" required>
+            <UInput
+              v-model="newVariantForm.name"
+              required
+              class="w-full"
+              :placeholder="t('styles.variants.fields.namePlaceholder')"
+            />
           </UFormField>
-          <UFormField label="Màu (tùy chọn)">
-            <UInput v-model="newVariantForm.color" class="w-full" placeholder="BLUE" />
+          <UFormField :label="t('styles.variants.fields.color')">
+            <UInput
+              v-model="newVariantForm.color"
+              class="w-full"
+              :placeholder="t('styles.variants.fields.colorPlaceholder')"
+            />
           </UFormField>
           <p class="text-xs text-gray-500">
-            Sau khi tạo, hover (desktop) hoặc bấm icon upload (mobile) để thêm ảnh mẫu.
+            {{ t('styles.variants.uploadHint') }}
           </p>
           <div class="flex justify-end gap-2 pt-2">
             <UButton variant="ghost" @click="newVariantOpen = false">
-              Hủy
+              {{ t('common.actions.cancel') }}
             </UButton>
             <UButton type="submit" :loading="submitting">
-              Tạo
+              {{ t('common.actions.create') }}
             </UButton>
           </div>
         </form>

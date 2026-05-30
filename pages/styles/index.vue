@@ -11,6 +11,7 @@ interface StyleRow {
 }
 
 const toast = useToast()
+const { t } = useI18n()
 const q = ref('')
 const dialogOpen = ref(false)
 const submitting = ref(false)
@@ -35,12 +36,12 @@ async function onSubmit() {
       method: 'POST',
       body: { code: form.code, name: form.name, description: form.description || undefined },
     })
-    toast.add({ title: 'Đã tạo mẫu', color: 'success' })
+    toast.add({ title: t('common.messages.created'), color: 'success' })
     dialogOpen.value = false
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
   finally {
@@ -49,14 +50,14 @@ async function onSubmit() {
 }
 
 async function onDelete(row: StyleRow) {
-  if (!confirm(`Xóa mẫu "${row.code}"?`)) return
+  if (!confirm(t('styles.deleteConfirm', { code: row.code }))) return
   try {
     await $fetch(`/api/styles/${row.id}`, { method: 'DELETE' })
-    toast.add({ title: 'Đã xóa', color: 'success' })
+    toast.add({ title: t('common.messages.deleted'), color: 'success' })
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
 }
@@ -75,28 +76,28 @@ function formatDate(iso: string) {
     <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div>
         <h1 class="text-xl md:text-2xl font-semibold">
-          Mẫu áo
+          {{ t('styles.title') }}
         </h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          Master data mẫu áo. Mỗi mẫu có nhiều biến thể (màu / họa tiết).
+          {{ t('styles.subtitle') }}
         </p>
       </div>
       <UButton icon="i-lucide-plus" class="self-start" @click="openCreate">
-        Thêm mẫu
+        {{ t('styles.addStyle') }}
       </UButton>
     </header>
 
     <div class="mb-4">
       <UInput
         v-model="q"
-        placeholder="Tìm theo mã hoặc tên..."
+        :placeholder="t('styles.searchPlaceholder')"
         icon="i-lucide-search"
         class="w-full sm:max-w-md"
       />
     </div>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
-      <!-- Mobile: stacked rows -->
+      <!-- Mobile -->
       <div class="md:hidden divide-y divide-gray-200 dark:divide-gray-800">
         <NuxtLink
           v-for="row in data?.items ?? []"
@@ -112,45 +113,45 @@ function formatDate(iso: string) {
             <div class="flex items-center gap-2">
               <span class="font-mono text-xs text-gray-500">{{ row.code }}</span>
               <UBadge v-if="!row.active" variant="soft" color="neutral" size="xs">
-                Đã ẩn
+                {{ t('common.labels.inactive') }}
               </UBadge>
             </div>
             <div class="font-medium truncate">
               {{ row.name }}
             </div>
             <div class="text-xs text-gray-500 mt-0.5">
-              {{ row.variantCount }} biến thể
+              {{ row.variantCount }} {{ t('styles.table.variantCount').toLowerCase() }}
             </div>
           </div>
           <UIcon name="i-lucide-chevron-right" class="w-4 h-4 text-gray-400" />
         </NuxtLink>
         <div v-if="!(data?.items ?? []).length" class="p-8 text-center text-sm text-gray-500">
-          Chưa có mẫu nào
+          {{ t('styles.empty') }}
         </div>
       </div>
 
-      <!-- Desktop: table -->
+      <!-- Desktop -->
       <div class="hidden md:block overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th class="px-4 py-2 font-medium w-16">
-                Ảnh
+                {{ t('common.labels.image') }}
               </th>
               <th class="px-4 py-2 font-medium w-32">
-                Mã
+                {{ t('common.labels.code') }}
               </th>
               <th class="px-4 py-2 font-medium">
-                Tên
+                {{ t('common.labels.name') }}
               </th>
               <th class="px-4 py-2 font-medium w-28 text-center">
-                Biến thể
+                {{ t('styles.table.variantCount') }}
               </th>
               <th class="px-4 py-2 font-medium w-24">
-                Trạng thái
+                {{ t('common.labels.status') }}
               </th>
               <th class="px-4 py-2 font-medium w-28">
-                Cập nhật
+                {{ t('common.labels.updatedAt') }}
               </th>
               <th class="px-4 py-2 w-20" />
             </tr>
@@ -184,10 +185,10 @@ function formatDate(iso: string) {
               </td>
               <td class="px-4 py-2">
                 <UBadge v-if="row.active" variant="soft" color="success" size="sm">
-                  Hoạt động
+                  {{ t('common.labels.active') }}
                 </UBadge>
                 <UBadge v-else variant="soft" color="neutral" size="sm">
-                  Đã ẩn
+                  {{ t('common.labels.inactive') }}
                 </UBadge>
               </td>
               <td class="px-4 py-2 text-xs text-gray-500 tabular-nums">
@@ -205,9 +206,9 @@ function formatDate(iso: string) {
             </tr>
             <tr v-if="!(data?.items ?? []).length">
               <td colspan="7" class="px-4 py-12 text-center text-sm text-gray-500">
-                Chưa có mẫu nào.
+                {{ t('styles.empty') }}.
                 <UButton variant="link" @click="openCreate">
-                  Tạo mẫu đầu tiên
+                  {{ t('styles.createFirst') }}
                 </UButton>
               </td>
             </tr>
@@ -216,24 +217,24 @@ function formatDate(iso: string) {
       </div>
     </UCard>
 
-    <UModal v-model:open="dialogOpen" title="Thêm mẫu áo mới">
+    <UModal v-model:open="dialogOpen" :title="t('styles.createTitle')">
       <template #body>
         <form class="space-y-4" @submit.prevent="onSubmit">
-          <UFormField label="Mã (vd: AO083)" required>
+          <UFormField :label="t('styles.fields.code')" required>
             <UInput v-model="form.code" required class="w-full" />
           </UFormField>
-          <UFormField label="Tên" required>
-            <UInput v-model="form.name" required class="w-full" placeholder="Áo polo cổ bẻ" />
+          <UFormField :label="t('styles.fields.name')" required>
+            <UInput v-model="form.name" required class="w-full" :placeholder="t('styles.fields.namePlaceholder')" />
           </UFormField>
-          <UFormField label="Mô tả">
+          <UFormField :label="t('styles.fields.description')">
             <UTextarea v-model="form.description" :rows="3" class="w-full" />
           </UFormField>
           <div class="flex justify-end gap-2 pt-2">
             <UButton variant="ghost" @click="dialogOpen = false">
-              Hủy
+              {{ t('common.actions.cancel') }}
             </UButton>
             <UButton type="submit" :loading="submitting">
-              Tạo
+              {{ t('common.actions.create') }}
             </UButton>
           </div>
         </form>

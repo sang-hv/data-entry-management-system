@@ -1,0 +1,129 @@
+{
+  "app": {
+    "name": "DEMS",
+    "tagline": "Quản lý đơn may mặc"
+  },
+  "common": {
+    "actions": {
+      "create": "Tạo",
+      "update": "Cập nhật",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "delete": "Xóa",
+      "edit": "Sửa",
+      "back": "Quay lại",
+      "backToList": "Quay lại danh sách",
+      "search": "Tìm kiếm",
+      "logout": "Đăng xuất",
+      "login": "Đăng nhập",
+      "add": "Thêm",
+      "uploadImage": "Upload ảnh",
+      "openMenu": "Mở menu",
+      "first": "đầu tiên"
+    },
+    "labels": {
+      "active": "Hoạt động",
+      "inactive": "Đã ẩn",
+      "status": "Trạng thái",
+      "updatedAt": "Cập nhật",
+      "image": "Ảnh",
+      "code": "Mã",
+      "name": "Tên",
+      "displayLabel": "Nhãn hiển thị",
+      "order": "Thứ tự",
+      "color": "Màu",
+      "description": "Mô tả",
+      "email": "Email",
+      "password": "Mật khẩu",
+      "optional": "tùy chọn"
+    },
+    "messages": {
+      "noData": "Chưa có dữ liệu",
+      "loading": "Đang tải...",
+      "genericError": "Có lỗi xảy ra",
+      "saved": "Đã lưu",
+      "created": "Đã tạo",
+      "updated": "Đã cập nhật",
+      "deleted": "Đã xóa",
+      "uploaded": "Đã upload"
+    },
+    "confirm": {
+      "delete": "Xóa \"{name}\"?"
+    }
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "orders": "Đơn hàng",
+    "styles": "Mẫu áo",
+    "sizes": "Kích cỡ"
+  },
+  "auth": {
+    "login": {
+      "title": "Đăng nhập",
+      "submit": "Đăng nhập",
+      "errorDefault": "Đăng nhập thất bại"
+    }
+  },
+  "dashboard": {
+    "greeting": "Xin chào, {name}",
+    "stats": {
+      "running": "Đơn đang chạy",
+      "overdue": "Đơn trễ deadline",
+      "dueSoon": "Sắp tới hạn (7d)",
+      "missingData": "Thiếu thông tin"
+    },
+    "placeholderNote": "Dashboard hiện đang ở chế độ placeholder. Số liệu thật và danh sách đơn cần chú ý sẽ được bổ sung ở Milestone 5 (Alerts & Dashboard)."
+  },
+  "sizes": {
+    "title": "Kích cỡ",
+    "subtitle": "Master data — kích cỡ áo dùng cho mọi đơn hàng",
+    "addSize": "Thêm size",
+    "createTitle": "Thêm size mới",
+    "editTitle": "Sửa size",
+    "fields": {
+      "code": "Mã (S, M, L...)",
+      "label": "Nhãn hiển thị",
+      "order": "Thứ tự (số nhỏ = đứng trước)",
+      "orderShort": "Thứ tự"
+    },
+    "empty": "Chưa có size nào",
+    "deleteConfirm": "Xóa size \"{code}\"?"
+  },
+  "styles": {
+    "title": "Mẫu áo",
+    "subtitle": "Master data mẫu áo. Mỗi mẫu có nhiều biến thể (màu / họa tiết).",
+    "addStyle": "Thêm mẫu",
+    "createTitle": "Thêm mẫu áo mới",
+    "searchPlaceholder": "Tìm theo mã hoặc tên...",
+    "deleteStyle": "Xóa mẫu",
+    "fields": {
+      "code": "Mã (vd: AO083)",
+      "name": "Tên",
+      "namePlaceholder": "Áo polo cổ bẻ",
+      "description": "Mô tả"
+    },
+    "table": {
+      "variantCount": "Biến thể"
+    },
+    "empty": "Chưa có mẫu nào",
+    "createFirst": "Tạo mẫu đầu tiên",
+    "deleteConfirm": "Xóa mẫu \"{code}\"?",
+    "deleteHardConfirm": "Xóa hẳn mẫu \"{code}\"?",
+    "variants": {
+      "title": "Biến thể ({count})",
+      "addVariant": "Thêm",
+      "createTitle": "Thêm biến thể",
+      "uploadHint": "Sau khi tạo, hover (desktop) hoặc bấm icon upload (mobile) để thêm ảnh mẫu.",
+      "fields": {
+        "name": "Tên biến thể",
+        "namePlaceholder": "TRANG KE XANH",
+        "color": "Màu (tùy chọn)",
+        "colorPlaceholder": "BLUE"
+      },
+      "empty": "Chưa có biến thể nào",
+      "createFirst": "Thêm biến thể đầu tiên",
+      "deleteConfirm": "Xóa biến thể \"{name}\"?",
+      "colorLabel": "Màu: {color}"
+    }
+  }
+}

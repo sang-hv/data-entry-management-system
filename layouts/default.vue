@@ -1,24 +1,24 @@
 <script setup lang="ts">
 const { user, logout } = useAuth()
 const route = useRoute()
+const { t } = useI18n()
 
-const navItems = [
-  { label: 'Dashboard', to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
-  { label: 'Đơn hàng', to: '/orders', icon: 'i-lucide-package' },
-  { label: 'Mẫu áo', to: '/styles', icon: 'i-lucide-shirt' },
-  { label: 'Kích cỡ', to: '/sizes', icon: 'i-lucide-ruler' },
-]
+const navItems = computed(() => [
+  { label: t('nav.dashboard'), to: '/dashboard', icon: 'i-lucide-layout-dashboard' },
+  { label: t('nav.orders'), to: '/orders', icon: 'i-lucide-package' },
+  { label: t('nav.styles'), to: '/styles', icon: 'i-lucide-shirt' },
+  { label: t('nav.sizes'), to: '/sizes', icon: 'i-lucide-ruler' },
+])
 
 const drawerOpen = ref(false)
 
-// Close drawer on route change.
 watch(() => route.fullPath, () => {
   drawerOpen.value = false
 })
 
 const currentPageTitle = computed(() => {
-  const match = navItems.find((n) => route.path.startsWith(n.to))
-  return match?.label ?? 'DEMS'
+  const match = navItems.value.find((n) => route.path.startsWith(n.to))
+  return match?.label ?? t('app.name')
 })
 </script>
 
@@ -30,7 +30,7 @@ const currentPageTitle = computed(() => {
         variant="ghost"
         icon="i-lucide-menu"
         size="md"
-        aria-label="Mở menu"
+        :aria-label="t('common.actions.openMenu')"
         @click="drawerOpen = true"
       />
       <div class="font-semibold">
@@ -40,7 +40,7 @@ const currentPageTitle = computed(() => {
         <UDropdownMenu
           :items="[[
             { label: user?.email, type: 'label' as const },
-            { label: 'Đăng xuất', icon: 'i-lucide-log-out', onSelect: logout },
+            { label: t('common.actions.logout'), icon: 'i-lucide-log-out', onSelect: logout },
           ]]"
         >
           <UButton variant="ghost" size="sm" icon="i-lucide-user" />
@@ -53,10 +53,10 @@ const currentPageTitle = computed(() => {
       <aside class="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
         <div class="px-4 py-5 border-b border-gray-200 dark:border-gray-800">
           <div class="font-semibold text-base">
-            DEMS
+            {{ t('app.name') }}
           </div>
           <div class="text-xs text-gray-500 dark:text-gray-400">
-            Quản lý đơn may mặc
+            {{ t('app.tagline') }}
           </div>
         </div>
         <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -74,7 +74,7 @@ const currentPageTitle = computed(() => {
         <div class="p-3 border-t border-gray-200 dark:border-gray-800">
           <UDropdownMenu
             :items="[[
-              { label: 'Đăng xuất', icon: 'i-lucide-log-out', onSelect: logout },
+              { label: t('common.actions.logout'), icon: 'i-lucide-log-out', onSelect: logout },
             ]]"
           >
             <button class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition">
@@ -100,10 +100,10 @@ const currentPageTitle = computed(() => {
             <div class="px-4 py-5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
               <div>
                 <div class="font-semibold text-base">
-                  DEMS
+                  {{ t('app.name') }}
                 </div>
                 <div class="text-xs text-gray-500">
-                  Quản lý đơn may mặc
+                  {{ t('app.tagline') }}
                 </div>
               </div>
               <UButton variant="ghost" icon="i-lucide-x" size="sm" @click="drawerOpen = false" />
@@ -133,7 +133,7 @@ const currentPageTitle = computed(() => {
                 </div>
               </div>
               <UButton variant="soft" color="neutral" block icon="i-lucide-log-out" @click="logout">
-                Đăng xuất
+                {{ t('common.actions.logout') }}
               </UButton>
             </div>
           </div>

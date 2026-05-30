@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { login } = useAuth()
+const { t } = useI18n()
 const email = ref('')
 const password = ref('')
 const errorMsg = ref<string | null>(null)
@@ -11,10 +12,12 @@ async function onSubmit() {
   try {
     await login(email.value, password.value)
     await navigateTo('/dashboard')
-  } catch (err: unknown) {
+  }
+  catch (err: unknown) {
     const e = err as { data?: { error?: { message?: string } } }
-    errorMsg.value = e.data?.error?.message ?? 'Đăng nhập thất bại'
-  } finally {
+    errorMsg.value = e.data?.error?.message ?? t('auth.login.errorDefault')
+  }
+  finally {
     submitting.value = false
   }
 }
@@ -27,20 +30,20 @@ definePageMeta({ layout: false })
     <UCard class="w-full max-w-md">
       <template #header>
         <h1 class="text-xl font-semibold">
-          Đăng nhập
+          {{ t('auth.login.title') }}
         </h1>
       </template>
 
       <form class="space-y-4" @submit.prevent="onSubmit">
-        <UFormField label="Email" required>
+        <UFormField :label="t('common.labels.email')" required>
           <UInput v-model="email" type="email" autocomplete="email" required class="w-full" />
         </UFormField>
-        <UFormField label="Mật khẩu" required>
+        <UFormField :label="t('common.labels.password')" required>
           <UInput v-model="password" type="password" autocomplete="current-password" required class="w-full" />
         </UFormField>
         <UAlert v-if="errorMsg" color="error" variant="soft" :title="errorMsg" />
         <UButton type="submit" block :loading="submitting">
-          Đăng nhập
+          {{ t('auth.login.submit') }}
         </UButton>
       </form>
     </UCard>

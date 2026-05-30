@@ -8,6 +8,7 @@ interface SizeRow {
 }
 
 const toast = useToast()
+const { t } = useI18n()
 const { data, refresh } = await useFetch<{ items: SizeRow[] }>('/api/sizes', {
   query: { activeOnly: 'false' },
 })
@@ -41,20 +42,20 @@ async function onSubmit() {
         method: 'PATCH',
         body: { patch: { label: form.label, order: form.order } },
       })
-      toast.add({ title: 'Đã cập nhật', color: 'success' })
+      toast.add({ title: t('common.messages.updated'), color: 'success' })
     }
     else {
       await $fetch('/api/sizes', {
         method: 'POST',
         body: { code: form.code, label: form.label, order: form.order },
       })
-      toast.add({ title: 'Đã tạo size', color: 'success' })
+      toast.add({ title: t('common.messages.created'), color: 'success' })
     }
     dialogOpen.value = false
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
   finally {
@@ -71,20 +72,20 @@ async function onToggleActive(row: SizeRow) {
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
 }
 
 async function onDelete(row: SizeRow) {
-  if (!confirm(`Xóa size "${row.code}"?`)) return
+  if (!confirm(t('sizes.deleteConfirm', { code: row.code }))) return
   try {
     await $fetch(`/api/sizes/${row.id}`, { method: 'DELETE' })
-    toast.add({ title: 'Đã xóa', color: 'success' })
+    toast.add({ title: t('common.messages.deleted'), color: 'success' })
     await refresh()
   }
   catch (err: unknown) {
-    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? 'Lỗi'
+    const msg = (err as { data?: { error?: { message?: string } } }).data?.error?.message ?? t('common.messages.genericError')
     toast.add({ title: msg, color: 'error' })
   }
 }
@@ -95,14 +96,14 @@ async function onDelete(row: SizeRow) {
     <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div>
         <h1 class="text-xl md:text-2xl font-semibold">
-          Kích cỡ
+          {{ t('sizes.title') }}
         </h1>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          Master data — kích cỡ áo dùng cho mọi đơn hàng
+          {{ t('sizes.subtitle') }}
         </p>
       </div>
       <UButton icon="i-lucide-plus" class="self-start" @click="openCreate">
-        Thêm size
+        {{ t('sizes.addSize') }}
       </UButton>
     </header>
 
@@ -116,7 +117,7 @@ async function onDelete(row: SizeRow) {
               <span class="text-sm text-gray-600 dark:text-gray-400 truncate">{{ row.label }}</span>
             </div>
             <div class="text-xs text-gray-500 mt-0.5">
-              Thứ tự: {{ row.order }}
+              {{ t('sizes.fields.orderShort') }}: {{ row.order }}
             </div>
           </div>
           <USwitch :model-value="row.active" @update:model-value="onToggleActive(row)" />
@@ -124,7 +125,7 @@ async function onDelete(row: SizeRow) {
           <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" @click="onDelete(row)" />
         </li>
         <li v-if="!(data?.items ?? []).length" class="p-8 text-center text-sm text-gray-500">
-          Chưa có size nào
+          {{ t('sizes.empty') }}
         </li>
       </ul>
 
@@ -134,16 +135,16 @@ async function onDelete(row: SizeRow) {
           <thead class="bg-gray-50 dark:bg-gray-800/50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th class="px-4 py-2 font-medium w-32">
-                Mã
+                {{ t('common.labels.code') }}
               </th>
               <th class="px-4 py-2 font-medium">
-                Nhãn hiển thị
+                {{ t('common.labels.displayLabel') }}
               </th>
               <th class="px-4 py-2 font-medium w-24 text-right">
-                Thứ tự
+                {{ t('common.labels.order') }}
               </th>
               <th class="px-4 py-2 font-medium w-28">
-                Hoạt động
+                {{ t('common.labels.active') }}
               </th>
               <th class="px-4 py-2 w-24" />
             </tr>
@@ -169,7 +170,7 @@ async function onDelete(row: SizeRow) {
             </tr>
             <tr v-if="!(data?.items ?? []).length">
               <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-500">
-                Chưa có size nào
+                {{ t('sizes.empty') }}
               </td>
             </tr>
           </tbody>
@@ -177,24 +178,24 @@ async function onDelete(row: SizeRow) {
       </div>
     </UCard>
 
-    <UModal v-model:open="dialogOpen" :title="editing ? 'Sửa size' : 'Thêm size mới'">
+    <UModal v-model:open="dialogOpen" :title="editing ? t('sizes.editTitle') : t('sizes.createTitle')">
       <template #body>
         <form class="space-y-4" @submit.prevent="onSubmit">
-          <UFormField label="Mã (S, M, L...)" required>
+          <UFormField :label="t('sizes.fields.code')" required>
             <UInput v-model="form.code" :disabled="!!editing" required class="w-full" />
           </UFormField>
-          <UFormField label="Nhãn hiển thị" required>
+          <UFormField :label="t('sizes.fields.label')" required>
             <UInput v-model="form.label" required class="w-full" />
           </UFormField>
-          <UFormField label="Thứ tự (số nhỏ = đứng trước)" required>
+          <UFormField :label="t('sizes.fields.order')" required>
             <UInput v-model.number="form.order" type="number" min="0" required class="w-full" />
           </UFormField>
           <div class="flex justify-end gap-2 pt-2">
             <UButton variant="ghost" @click="dialogOpen = false">
-              Hủy
+              {{ t('common.actions.cancel') }}
             </UButton>
             <UButton type="submit" :loading="submitting">
-              {{ editing ? 'Cập nhật' : 'Tạo' }}
+              {{ editing ? t('common.actions.update') : t('common.actions.create') }}
             </UButton>
           </div>
         </form>
