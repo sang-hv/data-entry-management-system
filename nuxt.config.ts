@@ -8,6 +8,8 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
   ],
 
+  css: ['~/assets/css/main.css'],
+
   // Use Nuxt 4 directory structure (app/ directory). Plan keeps source at root via srcDir override.
   srcDir: '.',
   serverDir: 'server',
