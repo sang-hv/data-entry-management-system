@@ -55,7 +55,8 @@
     "dashboard": "Dashboard",
     "orders": "Đơn hàng",
     "styles": "Mẫu áo",
-    "sizes": "Kích cỡ"
+    "sizes": "Kích cỡ",
+    "tasks": "Công đoạn"
   },
   "auth": {
     "login": {
@@ -88,6 +89,22 @@
     },
     "empty": "Chưa có size nào",
     "deleteConfirm": "Xóa size \"{code}\"?"
+  },
+  "tasks": {
+    "title": "Công đoạn",
+    "subtitle": "Master data — quy trình sản xuất (Cắt vải, May, Ủi, Đóng gói...)",
+    "addTask": "Thêm công đoạn",
+    "createTitle": "Thêm công đoạn mới",
+    "editTitle": "Sửa công đoạn",
+    "fields": {
+      "code": "Mã viết tắt (CUT, SEW... — tùy chọn)",
+      "name": "Tên công đoạn",
+      "namePlaceholder": "Cắt vải",
+      "description": "Mô tả"
+    },
+    "empty": "Chưa có công đoạn nào",
+    "deleteConfirm": "Xóa công đoạn \"{name}\"?",
+    "createFirst": "Tạo công đoạn đầu tiên"
   },
   "styles": {
     "title": "Mẫu áo",

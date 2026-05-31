@@ -8,6 +8,7 @@ const navItems = computed(() => [
   { label: t('nav.orders'), to: '/orders', icon: 'i-lucide-package' },
   { label: t('nav.styles'), to: '/styles', icon: 'i-lucide-shirt' },
   { label: t('nav.sizes'), to: '/sizes', icon: 'i-lucide-ruler' },
+  { label: t('nav.tasks'), to: '/tasks', icon: 'i-lucide-list-checks' },
 ])
 
 const drawerOpen = ref(false)
