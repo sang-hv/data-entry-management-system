@@ -1,10 +1,11 @@
 # Hệ thống Quản lý Đơn đặt hàng May mặc — Tài liệu Tổng quan Giải pháp
 
-> **Phiên bản:** 2.0
+> **Phiên bản:** 2.1
 > **Ngày phát hành:** 26/05/2026
 > **Mục đích:** Trình bày phạm vi, kiến trúc và lộ trình giải pháp ở mức tổng quan để khách hàng duyệt trước khi triển khai.
 > **Đối tượng đọc:** Người ra quyết định nghiệp vụ và người duyệt giải pháp kỹ thuật.
 > **Thay đổi v2:** điều chỉnh domain theo dữ liệu thật của khách (file Excel quản lý đơn đặt hàng áo) — bỏ phần vật tư/nhà cung cấp khỏi Phase 1, thêm quản lý mẫu áo + tỉ lệ size + đợt nhập.
+> **Thay đổi v2.1:** chuyển trạng thái đơn từ enum 7 bước cứng sang **quy trình task động** — mỗi đơn pick các task từ thư viện và sắp xếp thứ tự, tiến độ tính từ % task. Trạng thái đơn rút gọn còn 4 (Nháp / Đang chạy / Hoàn thành / Hủy) và auto-derive.
 
 ---
 
@@ -80,7 +81,7 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 - Mỗi đơn gắn với một mẫu áo cụ thể (chọn từ danh sách mẫu đã có).
 - Nhập đầy đủ thông tin: ngày đặt, ngày kỳ vọng giao, độ ưu tiên, ghi chú.
 - Sửa thông tin bất kỳ lúc nào, có lưu lịch sử thay đổi.
-- Trạng thái đơn theo vòng đời may mặc: *Nháp, Đã chốt, Đang sản xuất, Đang kiểm hàng, Sẵn sàng giao, Đã giao, Hủy*.
+- Trạng thái đơn (tự động): *Nháp* (chưa pick task) → *Đang chạy* (có task, chưa xong) → *Hoàn thành* (mọi task = 100%). Có thể *Hủy* thủ công bất kỳ lúc nào.
 - Xóa mềm (soft delete): đơn xóa đi vẫn còn trong hệ thống, có thể khôi phục.
 
 ### Quản lý mẫu áo (Style)
@@ -101,6 +102,16 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 - Mỗi đơn có thể khai báo **tỉ lệ size** (giống cột "Tỉ lệ nhập" trong Excel: 3, 3, 2, 1, 1).
 - Mỗi đơn có thể có **nhiều đợt chốt nhập** — mỗi đợt là một bản ghi với ngày chốt + số lượng theo từng size.
 - Có chức năng **"Tạo đợt nhập từ tỉ lệ"**: nhập một số nhân (multiplier) → hệ thống tự sinh số lượng cho từng size dựa trên tỉ lệ. Ví dụ tỉ lệ 3-3-2-1-1 × 8 → ra 24-24-16-8-8 = tổng 80.
+
+### Quy trình công đoạn (Tasks)
+
+- Có **thư viện task** dùng chung — admin tạo các công đoạn chuẩn của xưởng (ví dụ: *Cắt vải*, *May*, *Ủi*, *Đóng gói*).
+- Mỗi đơn hàng pick danh sách task từ thư viện và **sắp xếp thứ tự** thực hiện. Có thể pick cùng 1 task nhiều lần (vd kiểm hàng nhiều đợt).
+- Cập nhật **tiến độ % cho từng task** (0 → 100). Khi đạt 100% thì task được đánh dấu hoàn thành (✓).
+- Hiển thị quy trình dạng **stepper**: `Cắt vải ✓ → May ✓ → Ủi 75% → Đóng gói`.
+- **Trạng thái đơn tự động**: chưa có task = *Nháp*; có task chưa xong = *Đang chạy*; mọi task 100% = *Hoàn thành*.
+- **Tổng tiến độ đơn** = trung bình tiến độ các task. Hiển thị thanh % trong danh sách đơn để theo dõi nhanh.
+- Khi đổi tên task trong thư viện, các đơn cũ **giữ nguyên tên đã pick** (snapshot) — không ảnh hưởng báo cáo cũ.
 - Tổng số lượng đơn được tính tự động (cộng dồn các đợt), không phải nhập tay.
 
 ### Tệp đính kèm
@@ -149,7 +160,9 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 | Size master + Order Items (size + tỉ lệ) | **Must** |
 | Đợt nhập + apply ratio | **Must** |
 | Tổng tự động tính | **Must** |
-| Cảnh báo tự động (deadline, thiếu thông tin) | **Must** |
+| Task master + Quy trình công đoạn (pick + reorder + tiến độ %) | **Must** |
+| Trạng thái đơn auto-derive từ task | **Must** |
+| Cảnh báo tự động (deadline, thiếu thông tin, thiếu task) | **Must** |
 | Dashboard tổng quan | **Must** |
 | Audit log + timeline | **Must** |
 | Đính kèm file đơn | **Must** |
@@ -184,9 +197,10 @@ Hệ thống được tổ chức thành các module độc lập, mỗi module 
 
 | Module | Trách nhiệm chính | Có ở Phase 1 |
 |---|---|---|
-| **Orders** | Quản lý đơn đặt hàng, trạng thái, lịch sử | ✅ |
+| **Orders** | Quản lý đơn đặt hàng, trạng thái auto-derive, lịch sử | ✅ |
 | **Order Items** | Khai báo size + tỉ lệ cho từng đơn | ✅ |
 | **Order Batches** | Đợt chốt nhập (số lượng theo từng size) | ✅ |
+| **Tasks & Order Tasks** | Master data quy trình + pick + tiến độ % cho từng đơn | ✅ |
 | **Styles & Variants** | Master data mẫu áo + biến thể + ảnh | ✅ |
 | **Sizes** | Master data kích cỡ (S/M/L/XL/XXL + mở rộng) | ✅ |
 | **Alerts** | Đánh giá quy tắc cảnh báo, sinh và đóng cảnh báo | ✅ |
@@ -286,7 +300,7 @@ Một số tác vụ chạy ngầm theo lịch (mỗi 10 phút):
    ┌────────────┐   ┌──────────┐         ┌──────────────────┐
    │   Style    │   │  Order   │────────►│  OrderUpdate     │
    │   AO083    │   │ TN150501 │         │ (lịch sử trạng   │
-   └─────┬──────┘   │          │         │  thái)           │
+   └─────┬──────┘   │          │         │  thái + tiến độ) │
          │          │          │         └──────────────────┘
          ▼          │          │
    ┌────────────┐   │          │         ┌──────────────────┐
@@ -304,6 +318,12 @@ Một số tác vụ chạy ngầm theo lịch (mỗi 10 phút):
                     │          │         │   BatchItem      │──►┌──────┐
                     │          │         │ (size + qty)     │   │ Size │
                     │          │         └──────────────────┘   └──────┘
+                    │          │
+   ┌────────────┐   │          │         ┌──────────────────┐
+   │    Task    │◄──│          │────────►│   OrderTask      │
+   │ (Cắt vải,  │   │          │         │ (snapshot name + │
+   │   May ...) │   │          │         │  thứ tự + % done)│
+   └────────────┘   │          │         └──────────────────┘
                     │          │
                     │          │         ┌──────────────┐
                     │          │────────►│  Attachment  │
@@ -326,10 +346,12 @@ Một số tác vụ chạy ngầm theo lịch (mỗi 10 phút):
 | **Style** | Mẫu áo (master data) | **code** (AO083), name, description, active |
 | **StyleVariant** | Biến thể của một mẫu | styleId, name (TRANG KE XANH), imageUrl, color |
 | **Size** | Kích cỡ (master data) | **code** (S/M/L/...), label, order, active |
-| **Order** | Đơn đặt hàng | **code** (TN150501), styleVariantId, status, priority, orderedAt, expectedAt, actualAt, notes |
+| **Order** | Đơn đặt hàng | **code** (TN150501), styleVariantId, status (auto), progressPct (cache), priority, orderedAt, expectedAt, actualAt, notes |
 | **OrderItem** | Size + tỉ lệ của một đơn | orderId, sizeId, ratio |
 | **OrderBatch** | Đợt chốt nhập | orderId, batchNumber, batchedAt, note |
 | **BatchItem** | Số lượng cho một size trong một đợt | batchId, sizeId, quantity |
+| **Task** | Master data quy trình (Cắt vải, May...) | code?, name, description, active |
+| **OrderTask** | Task được pick vào 1 đơn (snapshot) | orderId, taskId?, **nameSnapshot**, order, **progressPct**, startedAt, completedAt |
 | **OrderUpdate** | Lịch sử thay đổi trạng thái đơn | orderId, fromStatus, toStatus, note, **source** |
 | **Attachment** | Tệp đính kèm | orderId, filename, mimeType, sizeBytes, storagePath |
 | **Alert** | Cảnh báo từ rule engine | orderId, ruleCode, severity, message, status |
@@ -361,15 +383,16 @@ Cảnh báo trong Phase 1 hoạt động theo **quy tắc cứng** (rule-based),
 
 | Mã quy tắc | Điều kiện | Mức độ | Khi nào tự đóng |
 |---|---|---|---|
-| `OVERDUE` | Đơn có deadline đã qua nhưng chưa giao | **Khẩn cấp** | Khi đánh dấu Đã giao hoặc dời deadline |
+| `OVERDUE` | Đơn có deadline đã qua nhưng chưa hoàn thành | **Khẩn cấp** | Khi mọi task xong hoặc dời deadline |
 | `DUE_SOON_3D` | Còn ≤ 3 ngày tới deadline | **Khẩn cấp** | Như trên |
 | `DUE_SOON_7D` | Còn ≤ 7 ngày tới deadline | Cảnh báo | Như trên |
-| `MISSING_DEADLINE` | Đơn đã chốt nhưng chưa có deadline | Cảnh báo | Khi điền |
-| `NO_ITEMS` | Đơn đã chốt nhưng chưa khai size + tỉ lệ | Cảnh báo | Khi thêm items |
-| `NO_BATCH` | Đơn đang sản xuất nhưng chưa có đợt nhập nào | Cảnh báo | Khi tạo đợt |
+| `MISSING_DEADLINE` | Đơn đang chạy nhưng chưa có deadline | Cảnh báo | Khi điền |
+| `NO_ITEMS` | Đơn đang chạy nhưng chưa khai size + tỉ lệ | Cảnh báo | Khi thêm items |
+| `NO_TASKS` | Đơn đang chạy nhưng chưa pick task nào | Cảnh báo | Khi pick task |
+| `NO_BATCH` | Đơn đã có task tiến độ ≥ 50% nhưng chưa có đợt nhập | Cảnh báo | Khi tạo đợt |
 | `BATCH_QTY_MISMATCH_RATIO` | Tổng qty đợt mới nhất không khớp tỉ lệ | Thông tin | Khi sửa lại |
-| `STATUS_TIMELINE_MISMATCH` | "Đã giao" nhưng chưa có ngày giao thực tế | Thông tin | Khi điền ngày |
-| `STALE_ORDER` | Đơn đang sản xuất, > 14 ngày không cập nhật | Thông tin | Khi có cập nhật |
+| `STATUS_TIMELINE_MISMATCH` | Hoàn thành nhưng chưa có ngày giao thực tế | Thông tin | Khi điền ngày |
+| `STALE_ORDER` | Đơn đang chạy, > 14 ngày không cập nhật | Thông tin | Khi có cập nhật |
 
 ### Khi nào quy tắc chạy
 
@@ -501,6 +524,8 @@ Phase 3 chỉ làm khi Phase 2 đã ổn định và có đủ dữ liệu lịc
 | **Variant / Biến thể** | Một biến thể của Style (TRANG KE XANH, TRANG KE DO) — có ảnh và màu riêng. |
 | **Size / Kích cỡ** | S/M/L/XL/XXL — master data, có thể mở rộng. |
 | **Order Item** | Một dòng "size + tỉ lệ" của một đơn. |
+| **Task / Công đoạn** | Một bước trong quy trình sản xuất (Cắt vải, May, Ủi, Đóng gói). Master data dùng chung. |
+| **Order Task** | Một task được pick vào 1 đơn — có thứ tự + tiến độ % riêng. Snapshot tên lúc pick. |
 | **Batch / Đợt nhập** | Một đợt chốt số lượng — mỗi đơn có thể có nhiều đợt theo thời gian. |
 | **Ratio / Tỉ lệ** | Tỉ lệ phân bổ size (3:3:2:1:1). Nhân với multiplier ra số lượng cụ thể. |
 | **Multiplier** | Số nhân với tỉ lệ. Ví dụ ratio 3:3:2:1:1 × 8 = qty 24:24:16:8:8. |

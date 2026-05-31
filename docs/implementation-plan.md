@@ -6,9 +6,10 @@
 >
 > **Khác `overview.md`:** overview là tài liệu gửi khách (high-level, ngôn ngữ nghiệp vụ). File này là spec kỹ thuật chi tiết, có code thật.
 >
-> **Phiên bản:** 2.0 — 26/05/2026
-> **Status:** Draft, chờ duyệt trước khi triển khai M1.
+> **Phiên bản:** 2.1 — 26/05/2026
+> **Status:** Updated for task-based workflow (M3 ready).
 > **Thay đổi v2:** rewrite domain từ "manufacturing project + BOM" sang "apparel order + style/size/batch" theo dữ liệu thật của khách (file Excel quản lý đơn đặt hàng). Drop `Material` và `Vendor` khỏi Phase 1.
+> **Thay đổi v2.1 (cho M3):** thay enum status cứng (7 giá trị) bằng task-based workflow. Thêm `Task` (master) + `OrderTask` (snapshot per order) với `progressPct` riêng. `Order.status` rút gọn `DRAFT/ACTIVE/COMPLETED/CANCELLED`, auto-derive từ task progress. `Order.progressPct` cache field tính từ `avg(OrderTask.progressPct)`.
 
 ---
 
@@ -25,6 +26,10 @@
 | **Tổng** | computed | Tổng = sum `BatchItem.quantity` của batch / order, không lưu. |
 | **Ngày đặt hàng** | `Order.orderedAt` | |
 | **Ảnh mẫu** | `StyleVariant.imageUrl` | Lưu ở storage, không lưu trong DB. |
+| **Task / Công đoạn** | `Task` (master) | Master data quy trình sản xuất, vd `Cắt vải`, `May`, `Ủi`, `Đóng gói`. |
+| **OrderTask** | `OrderTask` | Snapshot 1 task được pick vào 1 đơn — có `nameSnapshot`, `order` (thứ tự), `progressPct` (0..100). |
+| **Tổng tiến độ đơn** | `Order.progressPct` (cache) | Trung bình `progressPct` của các `OrderTask`. Auto-derive khi task progress thay đổi. |
+| **Trạng thái đơn** | `Order.status` (auto) | `DRAFT` (chưa pick task) → `ACTIVE` (có task, chưa xong) → `COMPLETED` (mọi task = 100%). `CANCELLED` set thủ công. |
 
 ---
 
@@ -76,15 +81,17 @@ Mapping trực tiếp từ file Excel của khách sang schema mới:
 | `Số lượng chốt nhập đợt mới` | `BatchItem.quantity` | Mỗi đợt nhập (`OrderBatch`) có nhiều `BatchItem`, mỗi item ứng với 1 size. |
 | `Tổng` (80) | computed | `SUM(BatchItem.quantity)` của đợt nhập mới nhất hoặc của order. Không lưu. |
 | `Ngày Đặt Hàng` (15/5/2026) | `Order.orderedAt` | Date, không có time. |
-| (chưa có ở Excel) | `Order.status` | Enum mới: `DRAFT, CONFIRMED, IN_PRODUCTION, QC, READY, DELIVERED, CANCELLED`. |
+| (chưa có ở Excel) | `Order.status` | Enum: `DRAFT, ACTIVE, COMPLETED, CANCELLED`. Auto-derive từ task progress (xem section Order Tasks). |
+| (chưa có ở Excel) | `Order.progressPct` | Cache 0..100. Auto = `avg(OrderTask.progressPct)`. |
 | (chưa có ở Excel) | `Order.notes` | Free text. |
+| (chưa có ở Excel) | `Order.tasks` | Quy trình công đoạn — pick từ master `Task` rồi sắp xếp thứ tự. Mỗi task có `progressPct` riêng. |
 
 ### Quan hệ tổng quan
 
 ```
 Style (AO083)
   └── StyleVariant (TRANG KE XANH, TRANG KE DO)
-         └── Order (TN150501) ─── orderedAt, status
+         └── Order (TN150501) ─── orderedAt, status, progressPct (cache)
                 ├── OrderItem [size=S, ratio=3]
                 ├── OrderItem [size=M, ratio=3]
                 ├── OrderItem [size=L, ratio=2]
@@ -97,21 +104,25 @@ Style (AO083)
                        ├── BatchItem [size=L, qty=16]
                        ├── BatchItem [size=XL, qty=8]
                        └── BatchItem [size=XXL, qty=8]
-                
-                └── OrderBatch (đợt 2) ── batchedAt, note
-                       └── ...
 
-Size (master) ── code (S/M/L/XL/XXL/...), order, active
+                └── OrderTask (order=10, "Cắt vải", progressPct=100, ✓)
+                └── OrderTask (order=20, "May", progressPct=100, ✓)
+                └── OrderTask (order=30, "Ủi", progressPct=75)
+                └── OrderTask (order=40, "Đóng gói", progressPct=0)
+
+Size (master)        ── code (S/M/L/XL/XXL/...), order, active
+Task (master)        ── code?, name (Cắt vải, May, ...), description, active
 ```
 
 ### Khác biệt quan trọng so với v1
 
 - ❌ Bỏ hẳn `MaterialRequirement` và `Vendor` khỏi Phase 1.
-- ❌ Bỏ `Milestone`.
+- ❌ Bỏ `Milestone` (thay bằng `OrderTask`).
 - ✅ Đổi `Project` → `Order`.
 - ✅ Thêm `Style`, `StyleVariant`, `Size`, `OrderItem`, `OrderBatch`, `BatchItem`.
-- ✅ Status enum đổi sang vòng đời may mặc.
-- ✅ Bỏ `progressPct` (tiến độ kiểu % không phù hợp với đơn may; dùng status + qty đã chốt là đủ).
+- ✅ Thêm `Task` (master) + `OrderTask` (snapshot) cho quy trình công đoạn.
+- ✅ Status đơn đơn giản hóa: `DRAFT/ACTIVE/COMPLETED/CANCELLED` — auto-derive từ task progress.
+- ✅ `Order.progressPct` cache field, tính từ trung bình task progress.
 
 ---
 
@@ -373,13 +384,10 @@ enum Role {
 }
 
 enum OrderStatus {
-  DRAFT          // Mới tạo, chưa chốt thông tin
-  CONFIRMED      // Đã chốt đơn (size + tỉ lệ + có ít nhất 1 batch)
-  IN_PRODUCTION  // Đang sản xuất
-  QC             // Đang kiểm hàng
-  READY          // Sẵn sàng giao
-  DELIVERED      // Đã giao
-  CANCELLED      // Hủy
+  DRAFT // Chưa pick task
+  ACTIVE // Có task, chưa hoàn thành (auto-derived)
+  COMPLETED // Tất cả task đã 100% (auto-derived)
+  CANCELLED // Hủy thủ công
 }
 
 enum Priority {
@@ -495,34 +503,58 @@ model Size {
   @@index([deletedAt])
 }
 
+// ========== Master data: Task ==========
+
+model Task {
+  id          String   @id @default(uuid())
+  code        String?  @unique // optional, vd "CUT", "SEW", "PACK"
+  name        String // "Cắt vải"
+  description String?  @db.Text
+  active      Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  orderTasks OrderTask[]
+
+  @@index([active])
+  @@index([deletedAt])
+}
+
 // ========== Core: Order ==========
 
 model Order {
-  id              String       @id @default(uuid())
-  code            String       @unique           // TN150501
-  styleVariantId  String
-  styleVariant    StyleVariant @relation(fields: [styleVariantId], references: [id])
-  ownerId         String
-  owner           User         @relation("OrderOwner", fields: [ownerId], references: [id])
+  id             String       @id @default(uuid())
+  code           String       @unique // TN150501
+  styleVariantId String
+  styleVariant   StyleVariant @relation(fields: [styleVariantId], references: [id])
+  ownerId        String
+  owner          User         @relation("OrderOwner", fields: [ownerId], references: [id])
 
-  status     OrderStatus @default(DRAFT)
-  priority   Priority    @default(NORMAL)
+  status   OrderStatus @default(DRAFT)
+  priority Priority    @default(NORMAL)
 
-  orderedAt    DateTime?       // Ngày đặt hàng (từ Excel)
-  expectedAt   DateTime?       // Deadline giao
-  actualAt     DateTime?       // Ngày giao thực tế
+  // Tổng tiến độ tính từ trung bình progressPct của các OrderTask.
+  // Cache field — denormalized; updated mỗi khi task progress thay đổi.
+  progressPct Int @default(0) // 0..100
 
-  notes      String?    @db.Text
-  metadata   Json?
+  orderedAt  DateTime? // Ngày đặt hàng (từ Excel)
+  expectedAt DateTime? // Deadline giao
+  actualAt   DateTime? // Ngày giao thực tế
 
-  version    Int        @default(0)  // optimistic locking
+  notes    String? @db.Text
+  metadata Json?
 
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  deletedAt  DateTime?
+  version Int @default(0) // optimistic locking
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   items       OrderItem[]
   batches     OrderBatch[]
+  tasks       OrderTask[]
   updates     OrderUpdate[]
   attachments Attachment[]
   alerts      Alert[]
@@ -532,6 +564,33 @@ model Order {
   @@index([deletedAt])
   @@index([code])
   @@index([orderedAt])
+}
+
+// 1 OrderTask = 1 task được pick vào 1 đơn (snapshot từ Task master)
+model OrderTask {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // taskId nullable: nếu Task master bị soft-delete thì snapshot vẫn giữ.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id])
+
+  // Snapshot tên/mô tả lúc pick — không đổi khi master đổi.
+  nameSnapshot        String
+  descriptionSnapshot String?  @db.Text
+
+  order       Int      @default(0) // thứ tự hiển thị (10, 20, 30, ...)
+  progressPct Int      @default(0) // 0..100. 100 = done.
+  notes       String?
+  startedAt   DateTime? // auto set lần đầu progressPct > 0
+  completedAt DateTime? // auto set khi progressPct = 100
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId, order])
+  @@index([taskId])
 }
 
 // 1 OrderItem = 1 dòng "size + tỉ lệ" của order
@@ -864,17 +923,20 @@ export async function createOrder(rawInput: unknown, ctx: ActionContext): Promis
 |---|---|---|---|---|
 | 1 | `createOrder` | write | code?, styleVariantId, items[], orderedAt?, expectedAt?, priority, notes? | `{ order, warnings[] }` |
 | 2 | `updateOrder` | write | id, version, patch | `{ order }` |
-| 3 | `updateOrderStatus` | write | id, version, toStatus, note? | `{ order, alertsChanged[] }` |
+| 3 | `cancelOrder` | write | id, version, reason? | `{ order }` (set status=CANCELLED) |
 | 4 | `setOrderItems` | write | orderId, items[] (replace toàn bộ) | `{ items[] }` |
 | 5 | `applyRatioToBatch` ⭐ | write | orderId, multiplier, batchNumber? | `{ batch, items[] }` |
 | 6 | `createBatch` | write | orderId, items[], batchedAt?, note? | `{ batch }` |
 | 7 | `setBatchItems` | write | batchId, items[] (replace) | `{ items[] }` |
-| 8 | `getOrderByCode` | read | code | `{ order, items, batches, alerts, totals }` |
-| 9 | `searchOrders` | read | filter, pagination, sort | `{ items[], total, page, pageSize }` |
-| 10 | `getUrgentOrders` | read | thresholdDays? | `Order[]` |
-| 11 | `getOrdersMissingData` | read | — | `{ order, missing[] }[]` |
-| 12 | `validateOrderDataCompleteness` | read | orderId | `{ isComplete, score, missing[] }` ⭐ |
-| 13 | `getActiveAlerts` | read | filter? | `Alert[]` |
+| 8 | `pickTasksForOrder` ⭐ | write | orderId, taskIds[] (theo thứ tự) | `{ tasks[] }` (clone snapshot từ master) |
+| 9 | `setOrderTasks` | write | orderId, items[] (replace toàn bộ, có thể reorder) | `{ tasks[] }` |
+| 10 | `updateOrderTaskProgress` ⭐ | write | orderTaskId, progressPct, notes? | `{ task, order: { status, progressPct } }` |
+| 11 | `getOrderByCode` | read | code | `{ order, items, batches, tasks, alerts, totals }` |
+| 12 | `searchOrders` | read | filter, pagination, sort | `{ items[], total, page, pageSize }` |
+| 13 | `getUrgentOrders` | read | thresholdDays? | `Order[]` |
+| 14 | `getOrdersMissingData` | read | — | `{ order, missing[] }[]` |
+| 15 | `validateOrderDataCompleteness` | read | orderId | `{ isComplete, score, missing[] }` ⭐ |
+| 16 | `getActiveAlerts` | read | filter? | `Alert[]` |
 
 ### 7.2. Auxiliary actions
 
@@ -884,6 +946,7 @@ updateBatch, deleteBatch
 createStyle, updateStyle, deleteStyle, listStyles
 createStyleVariant, updateStyleVariant, deleteStyleVariant, uploadVariantImage
 createSize, updateSize, deleteSize, listSizes
+createTask, updateTask, deleteTask, listTasks  ⬅ M3 new
 attachFileToOrder, deleteAttachment
 dismissAlert
 login, logout
@@ -946,19 +1009,63 @@ export const UpdateOrderInput = z.object({
   }),
 })
 
-// updateOrderStatus
-export const UpdateOrderStatusInput = z.object({
+// cancelOrder — set status = CANCELLED with optional reason
+export const CancelOrderInput = z.object({
   id: z.string().uuid(),
   version: z.number().int().min(0),
-  toStatus: z.enum(['DRAFT','CONFIRMED','IN_PRODUCTION','QC','READY','DELIVERED','CANCELLED']),
-  note: z.string().max(2000).optional(),
+  reason: z.string().max(2000).optional(),
+})
+
+// pickTasksForOrder — clone tasks from master into order (replaces existing)
+export const PickTasksForOrderInput = z.object({
+  orderId: z.string().uuid(),
+  // taskIds in the order they should appear (mảng có thể chứa cùng 1 taskId nhiều lần)
+  taskIds: z.array(z.string().uuid()).min(1),
+})
+
+// setOrderTasks — replace toàn bộ task list của order (reorder + add + remove)
+export const SetOrderTasksInput = z.object({
+  orderId: z.string().uuid(),
+  items: z.array(z.object({
+    // id: nếu có thì update OrderTask đã tồn tại; nếu null thì tạo mới từ taskId
+    id: z.string().uuid().optional(),
+    taskId: z.string().uuid().optional(), // null khi giữ snapshot mà task master bị xóa
+    nameSnapshot: z.string().min(1).max(255),
+    descriptionSnapshot: z.string().max(5000).optional(),
+    order: z.number().int().min(0),
+    progressPct: z.number().int().min(0).max(100).default(0),
+    notes: z.string().max(2000).optional(),
+  })),
+})
+
+// updateOrderTaskProgress — cập nhật tiến độ 1 task; trigger order status/progress recompute
+export const UpdateOrderTaskProgressInput = z.object({
+  orderTaskId: z.string().uuid(),
+  progressPct: z.number().int().min(0).max(100),
+  notes: z.string().max(2000).optional(),
+})
+
+// Task master CRUD
+export const CreateTaskInput = z.object({
+  code: z.string().min(1).max(64).optional(),
+  name: z.string().min(1).max(255),
+  description: z.string().max(5000).optional(),
+})
+
+export const UpdateTaskInput = z.object({
+  id: z.string().uuid(),
+  patch: z.object({
+    name: z.string().min(1).max(255).optional(),
+    description: z.string().max(5000).nullable().optional(),
+    active: z.boolean().optional(),
+  }),
 })
 
 // searchOrders
 export const SearchOrdersInput = z.object({
-  q: z.string().optional(),  // free-text: code, style code, variant name
-  status: z.array(z.enum(['DRAFT','CONFIRMED','IN_PRODUCTION','QC','READY','DELIVERED','CANCELLED'])).optional(),
-  priority: z.array(z.enum(['LOW','NORMAL','HIGH','URGENT'])).optional(),
+  q: z.string().optional(), // free-text: code, style code, variant name
+  status: z.array(z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED'])).optional(),
+  priority: z.array(z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT'])).optional(),
   styleId: z.string().uuid().optional(),
   styleVariantId: z.string().uuid().optional(),
   ownerId: z.string().uuid().optional(),
@@ -1011,12 +1118,14 @@ Trọng số Phase 1:
 | Field | Weight | Critical? |
 |---|---|---|
 | `styleVariantId` | 0.10 | ✅ |
-| `orderedAt` | 0.10 | — |
-| `expectedAt` | 0.20 | ✅ |
-| Có ít nhất 1 `OrderItem` (khi status ≥ CONFIRMED) | 0.20 | ✅ khi CONFIRMED+ |
-| Tất cả `OrderItem.ratio > 0` (khi có items) | 0.10 | — |
-| Có ít nhất 1 `OrderBatch` (khi status ≥ IN_PRODUCTION) | 0.20 | ✅ khi IN_PRODUCTION+ |
-| Tổng qty của batch mới nhất khớp với multiplier × ratio | 0.10 | — |
+| `orderedAt` | 0.05 | — |
+| `expectedAt` | 0.15 | ✅ |
+| Có ít nhất 1 `OrderItem` (khi status = ACTIVE) | 0.15 | ✅ khi ACTIVE |
+| Tất cả `OrderItem.ratio > 0` | 0.05 | — |
+| Có ít nhất 1 `OrderBatch` (khi status = ACTIVE và đã pick task ≥ "May") | 0.15 | — |
+| Tổng qty của batch mới nhất khớp với multiplier × ratio | 0.05 | — |
+| Có ít nhất 1 `OrderTask` (khi status ≥ ACTIVE) | 0.20 | ✅ khi ACTIVE |
+| Mọi `OrderTask` có `progressPct ∈ [0..100]` (data sanity) | 0.10 | — |
 
 `score = sum(weight × completed)`. `isComplete = (score ≥ 0.95) AND no critical missing`.
 
@@ -1035,12 +1144,15 @@ Trọng số Phase 1:
 | `GET` | `/api/orders/by-code/:code` | getOrderByCode |
 | `PATCH` | `/api/orders/:id` | updateOrder |
 | `DELETE` | `/api/orders/:id` | deleteOrder (soft) |
-| `POST` | `/api/orders/:id/status` | updateOrderStatus |
+| `POST` | `/api/orders/:id/cancel` | cancelOrder |
 | `GET` | `/api/orders/:id/validate` | validateOrderDataCompleteness |
 | `GET` | `/api/orders/:id/timeline` | getOrderTimeline |
 | `PUT` | `/api/orders/:id/items` | setOrderItems |
 | `POST` | `/api/orders/:id/apply-ratio` | applyRatioToBatch |
 | `POST` | `/api/orders/:id/batches` | createBatch |
+| `POST` | `/api/orders/:id/tasks` | pickTasksForOrder |
+| `PUT` | `/api/orders/:id/tasks` | setOrderTasks |
+| `PATCH` | `/api/order-tasks/:id/progress` | updateOrderTaskProgress |
 | `POST` | `/api/orders/:id/attachments` | attachFileToOrder (multipart) |
 | `DELETE` | `/api/attachments/:id` | deleteAttachment |
 | `GET` | `/api/batches/:id` | getBatchById (auxiliary) |
@@ -1059,6 +1171,10 @@ Trọng số Phase 1:
 | `POST` | `/api/sizes` | createSize |
 | `PATCH` | `/api/sizes/:id` | updateSize |
 | `DELETE` | `/api/sizes/:id` | deleteSize |
+| `GET` | `/api/tasks` | listTasks |
+| `POST` | `/api/tasks` | createTask |
+| `PATCH` | `/api/tasks/:id` | updateTask |
+| `DELETE` | `/api/tasks/:id` | deleteTask |
 | `GET` | `/api/alerts?...` | getActiveAlerts |
 | `POST` | `/api/alerts/:id/dismiss` | dismissAlert |
 | `GET` | `/api/dashboard/urgent?days=7` | getUrgentOrders |
@@ -1118,15 +1234,16 @@ async function generateOrderCode(date = new Date()) {
 
 | Mã rule | Điều kiện | Severity | Khi nào reset |
 |---|---|---|---|
-| `OVERDUE` | `expectedAt < now()` AND `status NOT IN (DELIVERED, CANCELLED)` | CRITICAL | Khi DELIVERED hoặc dời `expectedAt` |
-| `DUE_SOON_3D` | `expectedAt - now() <= 3d` AND status active | CRITICAL | Như trên |
-| `DUE_SOON_7D` | `expectedAt - now() <= 7d` AND status active | WARN | Như trên |
-| `MISSING_DEADLINE` | `expectedAt IS NULL` AND `status >= CONFIRMED` | WARN | Khi điền |
-| `NO_ITEMS` | `status >= CONFIRMED` AND không có `OrderItem` | WARN | Khi thêm item |
-| `NO_BATCH` | `status >= IN_PRODUCTION` AND không có `OrderBatch` | WARN | Khi tạo batch |
+| `OVERDUE` | `expectedAt < now()` AND `status NOT IN (COMPLETED, CANCELLED)` | CRITICAL | Khi COMPLETED hoặc dời `expectedAt` |
+| `DUE_SOON_3D` | `expectedAt - now() <= 3d` AND status NOT IN (COMPLETED, CANCELLED) | CRITICAL | Như trên |
+| `DUE_SOON_7D` | `expectedAt - now() <= 7d` AND status NOT IN (COMPLETED, CANCELLED) | WARN | Như trên |
+| `MISSING_DEADLINE` | `expectedAt IS NULL` AND `status = ACTIVE` | WARN | Khi điền |
+| `NO_ITEMS` | `status = ACTIVE` AND không có `OrderItem` | WARN | Khi thêm item |
+| `NO_TASKS` | `status = ACTIVE` AND không có `OrderTask` | WARN | Khi pick task |
+| `NO_BATCH` | `status = ACTIVE` AND có ít nhất 1 task `progressPct ≥ 50%` AND không có `OrderBatch` | WARN | Khi tạo batch |
 | `BATCH_QTY_MISMATCH_RATIO` | Ratio định nghĩa nhưng tổng qty của batch mới nhất không phải bội của tổng ratio | INFO | Khi sửa lại |
-| `STATUS_TIMELINE_MISMATCH` | `status = DELIVERED` nhưng `actualAt IS NULL` | INFO | Khi điền |
-| `STALE_ORDER` | `status = IN_PRODUCTION` AND `updatedAt < now() - 14d` | INFO | Khi có cập nhật |
+| `STATUS_TIMELINE_MISMATCH` | `status = COMPLETED` nhưng `actualAt IS NULL` | INFO | Khi điền |
+| `STALE_ORDER` | `status = ACTIVE` AND `updatedAt < now() - 14d` | INFO | Khi có cập nhật |
 
 ### Rule interface
 
@@ -1315,26 +1432,35 @@ Mỗi milestone là **1 đơn vị có thể demo được**. Sau mỗi mileston
 - [ ] Xóa style đang có order tham chiếu → conflict error rõ ràng.
 - [ ] Audit log có entry cho mỗi mutation.
 
-### M3 — Orders core (đơn + items + status)
+### M3 — Orders core + Tasks (đơn + items + quy trình)
 
-**Mục tiêu:** tạo order với size + ratio, đổi status, lưu lịch sử. Chưa có batch.
+**Mục tiêu:** tạo order với size + ratio, pick task quy trình, cập nhật tiến độ task → auto-derive order status & progress. Chưa có batch (M4).
 
 **Scope:**
-- Module `orders`: order.repo, order.code-gen, order.totals, types.
-- Actions: `createOrder`, `updateOrder`, `updateOrderStatus`, `setOrderItems`, `deleteOrder`, `getOrderById`, `getOrderByCode`, `searchOrders`, `getOrderTimeline`.
+- Module `tasks` (master): task.repo, types. Actions: `createTask`, `updateTask`, `deleteTask`, `listTasks`.
+- Module `orders`: order.repo, order.code-gen, order.totals, order.progress (compute từ task), types.
+- Module `order-tasks`: orderTask.repo, types.
+- Actions order: `createOrder`, `updateOrder`, `cancelOrder` (replace updateOrderStatus), `setOrderItems`, `deleteOrder`, `getOrderById`, `getOrderByCode`, `searchOrders`, `getOrderTimeline`.
+- Actions order-tasks: `pickTasksForOrder`, `setOrderTasks`, `updateOrderTaskProgress`.
 - API tương ứng.
 - FE:
-  - `pages/orders/index.vue` (list + filter + search).
-  - `pages/orders/new.vue` (form: code, style picker, ngày đặt, ngày kỳ vọng, priority, notes; thêm bảng items chọn size + ratio).
-  - `pages/orders/[id].vue` với tab Info, Items, Timeline (Batches/Attachments/Alerts placeholder).
-  - Component `OrderForm`, `OrderList`, `OrderStatusBadge`, `OrderItemsEditor`, `OrderTimeline`, `StylePicker`.
-- Test integration 8 actions.
+  - `pages/tasks/index.vue` (master CRUD bảng đơn giản).
+  - `pages/orders/index.vue` (list + filter + search + status badge + progress bar).
+  - `pages/orders/new.vue` (form: code, style picker, ngày đặt, ngày kỳ vọng, priority, notes; bảng items size+ratio; pick tasks từ master + reorder).
+  - `pages/orders/[id].vue` với tab Info, Items, Quy trình (stepper hiển thị task list với % và tick), Timeline.
+  - Component `OrderForm`, `OrderList`, `OrderStatusBadge`, `OrderItemsEditor`, `OrderTaskStepper`, `TaskPicker`, `OrderTimeline`, `StylePicker`.
+- Test integration cho tasks + order-tasks + auto-derive status.
 
 **Acceptance criteria:**
-- [ ] Tạo order `TN150501` với variant AO083-TRANG KE XANH, items [S:3, M:3, L:2, XL:1, XXL:1].
-- [ ] Đổi status DRAFT → CONFIRMED → tab Timeline hiện entry.
-- [ ] Sửa name xong reload → tên mới.
-- [ ] Xóa order → biến mất khỏi list.
+- [ ] Tạo 4 task master: `Cắt vải`, `May`, `Ủi`, `Đóng gói`.
+- [ ] Tạo order `TN150501` với variant AO083-TRANG KE XANH, items [S:3, M:3, L:2, XL:1, XXL:1] → status `DRAFT`.
+- [ ] Pick 4 task vào order theo thứ tự → status auto thành `ACTIVE`, `progressPct = 0`.
+- [ ] Cập nhật `Cắt vải` = 100% → có tick trên stepper, `Order.progressPct = 25`.
+- [ ] Cập nhật `May` = 50% → `Order.progressPct = (100+50+0+0)/4 = 37`.
+- [ ] Cập nhật cả 4 task = 100% → `status = COMPLETED` tự động.
+- [ ] Cancel order → status = `CANCELLED`, không thể cập nhật task progress nữa.
+- [ ] Đổi tên `Task.name` master sau khi đã pick vào order → tên trong `OrderTask.nameSnapshot` không đổi.
+- [ ] Xóa task master đang được order dùng → conflict error.
 - [ ] Hai tab cùng sửa 1 order → tab thứ 2 báo "Resource was modified".
 - [ ] AuditLog có entry cho mọi mutation, `source = 'ui'`, `requestId` khớp.
 - [ ] Search `q=TN150501` trả đúng order.
@@ -1380,7 +1506,7 @@ Mỗi milestone là **1 đơn vị có thể demo được**. Sau mỗi mileston
 **Acceptance criteria:**
 - [ ] Tạo order không có deadline → alert `MISSING_DEADLINE` xuất hiện trong < 5 giây.
 - [ ] Set `expectedAt` = quá khứ → alert `OVERDUE` với số ngày trễ.
-- [ ] DELIVERED order → `OVERDUE` tự đóng.
+- [ ] Đánh dấu mọi task = 100% (status auto-derive COMPLETED) → alert `OVERDUE` tự đóng.
 - [ ] Dashboard count đúng.
 - [ ] Dismiss alert kèm reason → biến mất khỏi list active.
 - [ ] `validateOrderDataCompleteness` trả đúng score cho 3 case test (empty, half, full).

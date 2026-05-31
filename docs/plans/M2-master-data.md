@@ -312,7 +312,7 @@ tests/
 🔵 **Optimistic locking** với `version Int @default(0)` — chưa dùng ở M2 vì master data. M3 Order phải nhận `version` trong update body, mismatch → `OptimisticLockError`.
 🔵 **Order code generator** atomic qua `OrderCodeCounter` table.
 🔵 **Cross-entity validate** trong `createOrder`: kiểm tra `styleVariantId` tồn tại + active, validate items array có sizeId hợp lệ.
-🔵 **Status transition rules** — đề xuất: enum `OrderStatus` chỉ chấp nhận transition theo state machine đơn giản (DRAFT → CONFIRMED → IN_PRODUCTION → QC → READY → DELIVERED), CANCELLED có thể từ bất kỳ state nào trừ DELIVERED.
+🔵 **Status transition rules** — ⚠️ **superseded ở v2.1:** thay enum `OrderStatus` cứng bằng task-based workflow. Status đơn rút gọn còn `DRAFT/ACTIVE/COMPLETED/CANCELLED`, auto-derive từ task progress. Xem `docs/implementation-plan.md` mục 5 (schema) + mục 14 (M3 milestone). Không cần state machine library — derive logic nằm trong action `updateOrderTaskProgress`.
 🔵 **Set vs patch semantics**: action `setOrderItems` (replace toàn bộ) vs `addMaterialRequirement` (append). Cẩn thận cho M3 — dự định `setOrderItems` là replace.
 🔵 **Search với multi-field filter**: extend `searchOrders` Zod schema với `q`, `status[]`, `priority[]`, `dueBefore/After`, ...
 🔵 **Bộ M4 ⭐**: action `applyRatioToBatch(orderId, multiplier)` — generate batch qty từ tỉ lệ × multiplier. Đây là feature đặc trưng nhất của domain may mặc.
