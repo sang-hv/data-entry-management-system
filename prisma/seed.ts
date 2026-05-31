@@ -12,6 +12,13 @@ const DEFAULT_SIZES = [
   { code: 'XXL', label: 'Áo XXL', order: 50 },
 ]
 
+const DEFAULT_TASKS = [
+  { code: 'CUT', name: 'Cắt vải', description: 'Cắt theo rập' },
+  { code: 'SEW', name: 'May', description: 'Ráp các chi tiết áo' },
+  { code: 'IRON', name: 'Ủi', description: 'Ủi nhiệt định hình' },
+  { code: 'PACK', name: 'Đóng gói', description: 'Bao bì + đếm số lượng' },
+]
+
 function generateRandomPassword(): string {
   // Ensure ≥10 chars with at least one letter and one digit.
   const random = randomBytes(12).toString('base64url').slice(0, 14)
@@ -39,6 +46,16 @@ async function main() {
     })
   }
   console.log(`✓ Seeded ${DEFAULT_SIZES.length} default sizes`)
+
+  // Tasks: idempotent upsert by code.
+  for (const t of DEFAULT_TASKS) {
+    await prisma.task.upsert({
+      where: { code: t.code },
+      create: t,
+      update: {},
+    })
+  }
+  console.log(`✓ Seeded ${DEFAULT_TASKS.length} default tasks`)
 
   // Admin handling differs based on whether SEED_ADMIN_PASSWORD is set.
   if (fixedPassword) {

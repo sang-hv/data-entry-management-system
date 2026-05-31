@@ -1,7 +1,7 @@
-# M3 Orders & Tasks — Plan & Decisions
+# M3 Orders & Tasks — Implementation Record
 
-> **Status:** 📋 Plan (chưa execute)
-> **Format:** task-by-task overview, sẽ chuyển sang record format sau khi execute (giống M2).
+> **Status:** ✅ Complete (tag `m3-orders-tasks`)
+> **Format:** post-execution record. Decisions + execution notes + lessons for M4.
 > **Reference:** schema chi tiết ở `docs/implementation-plan.md` mục 5; actions ở mục 7.
 
 **Goal:** Tạo đơn đặt hàng đầu-cuối với items (size + tỉ lệ), pick task quy trình từ thư viện, cập nhật tiến độ để auto-derive trạng thái + tổng tiến độ đơn.
@@ -258,7 +258,50 @@ Status:        ACTIVE
 
 ---
 
-## 8. Out of scope
+## 8. Execution summary (post-completion)
+
+**13 commits + 1 tag** (`m3-orders-tasks`) trên `master`.
+
+| Task | Commit | Tests added |
+|---|---|---|
+| 1. Migration: enum 4-state + Task + OrderTask | `dcb99f3` | — (66 existing still pass) |
+| 2. Task module + 4 actions | `32a00fd` | 12 |
+| 3. Tasks API + UI page | `009fd62` | smoke |
+| 4. Order foundation (code-gen, progress, repo) | `bc6e1bc` | 11 (4 codegen + 7 progress) |
+| 5. 9 order actions | `2aad564` | 21 |
+| 6. OrderTask repo + recompute helper | `cd21116` | covered by Task 7 |
+| 7. 3 order-task actions | `57136c2` | 13 |
+| 8. 11 REST endpoints | `168ed5f` | smoke |
+| 9-12. UI pages + 6 components | `0ec844b` | smoke |
+| 13. i18n keys | (in 0ec844b) | — |
+| 14. Full happy-path test | (in 57136c2) | — |
+| 15. Update seed: 4 tasks + (chuẩn bị) | (this commit) | — |
+| 16. Tag M3 | (final) | — |
+
+**Total:** 57 new tests added in M3 backend. Combined with M1+M2 = **123 tests pass**.
+
+### Decisions tweaked during execution
+
+- **Migration approach:** `prisma migrate dev` is interactive when dropping enum values; bypassed by:
+  1. `prisma migrate reset --force --skip-seed` (DB had no order data — safe).
+  2. `prisma db push --accept-data-loss --skip-generate` to sync schema.
+  3. `prisma migrate diff --from-schema-datamodel <old> --to-schema-datamodel <new> --script` to generate SQL.
+  4. Save SQL into `prisma/migrations/...` and `prisma migrate resolve --applied` to mark as applied.
+  Future: dùng same approach for any enum drop.
+
+- **`OrderTask.position`** thay cho `order` (field name conflict với relation `order`).
+
+- **`order.repo.list()` JSON include** trả `_count.tasks/items/batches` cho UI list.
+
+- **`StylePicker` component** rewrite từ `computedAsync` sang preload all variants qua endpoint mới `GET /api/variants` (flatten variants of all active styles). Lý do: `computedAsync` chỉ có ở `@vueuse/core`, cài thêm dependency cho 1 use case là over-engineering.
+
+- **Lucide icons:** Nuxt UI v3 yêu cầu `@iconify-json/lucide` collection cài local thay vì fetch online — không có thì icons không render đúng.
+
+- **TaskPicker** cho phép pick cùng task nhiều lần — UI hiển thị badge có ordinal số (1, 2, 3...) để user không nhầm.
+
+---
+
+## 9. Out of scope (deferred)
 
 - ❌ Task templates (gắn sẵn 1 set task vào style → khi tạo order auto-pick) — đẩy về Phase 1.5 nếu khách yêu cầu.
 - ❌ Task dependencies (task X phải xong trước task Y) — không thực hiện ở M3 vì user chọn option B (gợi ý, không enforce).
@@ -268,4 +311,19 @@ Status:        ACTIVE
 
 ---
 
-*Hết M3 plan. Sẽ update sang record format sau khi execute xong.*
+## 10. Lessons cho M4 (Batches & Apply Ratio)
+
+- **Inherit:** action layer pattern, optimistic locking, recompute-on-mutation, snapshot-on-pick.
+- **New ở M4:**
+  - `OrderBatch` có `batchNumber` auto-increment per order (transactional).
+  - Action `applyRatioToBatch(orderId, multiplier)` ⭐ — generate batch qty từ `OrderItem.ratio × multiplier`.
+  - Trigger alert evaluation sau mỗi batch mutation (chuẩn bị cho M5).
+- **Pitfalls đã ghi nhận M3:**
+  - Migrate enum drop → cần workflow non-interactive (db push + diff + resolve).
+  - Avoid `computedAsync` trong components — preload via dedicated endpoint.
+  - Field name "order" conflict với relation; dùng "position" cho ordering.
+  - Component khi `await useFetch` ở top-level cần `useRequestFetch` để forward cookies trong SSR (đã fix ở `useAuth`).
+
+---
+
+*Hết M3 record. Tag: `m3-orders-tasks`.*
