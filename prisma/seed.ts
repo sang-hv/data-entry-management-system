@@ -17,6 +17,8 @@ const DEFAULT_TASKS = [
   { code: 'SEW', name: 'May', description: 'Ráp các chi tiết áo' },
   { code: 'IRON', name: 'Ủi', description: 'Ủi nhiệt định hình' },
   { code: 'PACK', name: 'Đóng gói', description: 'Bao bì + đếm số lượng' },
+  { code: 'SHIP', name: 'Đang giao hàng', description: 'Đang vận chuyển đến khách' },
+  { code: 'DELIVERED', name: 'Đã giao hàng', description: 'Khách đã nhận' },
 ]
 
 function generateRandomPassword(): string {
