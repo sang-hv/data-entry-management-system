@@ -1,12 +1,23 @@
-name: Deploy Self-Hosted Runner
+name: CI + Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [master]
+  pull_request:
   workflow_dispatch:
 
+# Đảm bảo không chạy 2 deploy chồng lên nhau cùng lúc.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+env:
+  PROJECT_DIR: /Users/dehavietnam/projects/data-entry-management-system
+  PM2_APP_NAME: dems
+  APP_PORT: '3005'
+
 jobs:
-  test:
+  verify:
     runs-on: self-hosted
     steps:
       - name: Checkout
@@ -14,6 +25,146 @@ jobs:
 
       - name: Show environment
         run: |
-          echo "Running on: $(uname -a)"
-          echo "User: $(whoami)"
-          pwd
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          echo "Node: $(node -v)"
+          echo "pnpm: $(pnpm -v)"
+          uname -a
+
+      - name: Install dependencies
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm prisma generate
+
+      - name: Prepare Nuxt
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm nuxt prepare
+
+      - name: Lint
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm lint
+
+      # Skip vitest on self-hosted runner (prod) — tests use the live
+      # postgres DB and resetDb() wipes data. Devs run `pnpm test`
+      # locally before pushing.
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - name: Show context
+        run: |
+          echo "Deploying commit: ${{ github.sha }}"
+          echo "Triggered by:    ${{ github.event_name }}"
+          echo "Project dir:     $PROJECT_DIR"
+
+      - name: Sync project dir to latest master
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          git fetch --tags origin master
+          git reset --hard origin/master
+          git log -1 --oneline
+
+      - name: Install dependencies
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm install --frozen-lockfile
+
+      - name: Ensure Postgres + Adminer running
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          docker compose up -d
+          for i in $(seq 1 30); do
+            if docker exec dems_postgres pg_isready -U dems -d dems > /dev/null 2>&1; then
+              echo "Postgres is ready"
+              break
+            fi
+            sleep 1
+          done
+
+      # Use .env.production on the server. Prisma reads DATABASE_URL
+      # from .env (project root). Symlink ./.env → ./.env.production
+      # for migration + seed commands.
+      - name: Activate .env.production
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          if [ ! -f .env.production ]; then
+            echo ".env.production missing on server — create it first"
+            exit 1
+          fi
+          ln -sfn .env.production .env
+
+      - name: Apply DB migrations
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm prisma generate
+          pnpm prisma migrate deploy
+
+      - name: Run seed (idempotent — admin + sizes + tasks)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm seed
+
+      - name: Build production bundle
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          NODE_ENV: production
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pnpm build
+
+      - name: Reload pm2 (zero-downtime if running, else start)
+        working-directory: ${{ env.PROJECT_DIR }}
+        env:
+          NODE_ENV: production
+          PORT: ${{ env.APP_PORT }}
+        run: |
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
+            echo "Reloading existing pm2 process..."
+            pm2 reload "$PM2_APP_NAME" --update-env
+          else
+            echo "Starting new pm2 process..."
+            pm2 start .output/server/index.mjs \
+              --name "$PM2_APP_NAME" \
+              --cwd "$PROJECT_DIR" \
+              --update-env
+          fi
+          pm2 save
+
+      - name: Wait for app to respond
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${APP_PORT}/api/health" > /dev/null; then
+              echo "App is healthy"
+              curl -s "http://127.0.0.1:${APP_PORT}/api/health"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Health check failed after 30s"
+          source ~/.nvm/nvm.sh
+          nvm use 24
+          pm2 logs "$PM2_APP_NAME" --lines 50 --nostream
+          exit 1
