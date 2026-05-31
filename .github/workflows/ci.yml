@@ -15,6 +15,9 @@ env:
   PROJECT_DIR: /Users/dehavietnam/projects/data-entry-management-system
   PM2_APP_NAME: dems
   APP_PORT: '3005'
+  # NVM_DIR is exported so every step can source nvm without relying on
+  # the runner's login shell (GitHub Actions uses non-login bash by default).
+  NVM_DIR: /Users/dehavietnam/.nvm
 
 jobs:
   verify:
@@ -25,34 +28,40 @@ jobs:
 
       - name: Show environment
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
-          echo "Node: $(node -v)"
-          echo "pnpm: $(pnpm -v)"
+          corepack enable >/dev/null 2>&1 || true
+          echo "Node:    $(node -v)"
+          echo "pnpm:    $(pnpm -v)"
+          echo "PATH:    $PATH"
           uname -a
 
       - name: Install dependencies
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm install --frozen-lockfile
 
       - name: Generate Prisma client
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm prisma generate
 
       - name: Prepare Nuxt
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm nuxt prepare
 
       - name: Lint
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm lint
 
       # Skip vitest on self-hosted runner (prod) — tests use the live
@@ -81,8 +90,9 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm install --frozen-lockfile
 
       - name: Ensure Postgres + Adminer running
@@ -112,16 +122,18 @@ jobs:
       - name: Apply DB migrations
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm prisma generate
           pnpm prisma migrate deploy
 
       - name: Run seed (idempotent — admin + sizes + tasks)
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm seed
 
       - name: Build production bundle
@@ -129,8 +141,9 @@ jobs:
         env:
           NODE_ENV: production
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           pnpm build
 
       - name: Reload pm2 (zero-downtime if running, else start)
@@ -139,8 +152,9 @@ jobs:
           NODE_ENV: production
           PORT: ${{ env.APP_PORT }}
         run: |
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
+          corepack enable >/dev/null 2>&1 || true
           if pm2 describe "$PM2_APP_NAME" > /dev/null 2>&1; then
             echo "Reloading existing pm2 process..."
             pm2 reload "$PM2_APP_NAME" --update-env
@@ -164,7 +178,7 @@ jobs:
             sleep 1
           done
           echo "Health check failed after 30s"
-          source ~/.nvm/nvm.sh
+          source "$NVM_DIR/nvm.sh"
           nvm use 24
           pm2 logs "$PM2_APP_NAME" --lines 50 --nostream
           exit 1
