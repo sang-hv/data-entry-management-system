@@ -18,13 +18,10 @@ enum Role {
 }
 
 enum OrderStatus {
-  DRAFT // Mới tạo, chưa chốt thông tin
-  CONFIRMED // Đã chốt đơn (size + tỉ lệ + có ít nhất 1 batch)
-  IN_PRODUCTION // Đang sản xuất
-  QC // Đang kiểm hàng
-  READY // Sẵn sàng giao
-  DELIVERED // Đã giao
-  CANCELLED // Hủy
+  DRAFT // Chưa pick task
+  ACTIVE // Có task, chưa hoàn thành (auto-derived)
+  COMPLETED // Tất cả task đã 100% (auto-derived)
+  CANCELLED // Hủy thủ công
 }
 
 enum Priority {
@@ -140,6 +137,25 @@ model Size {
   @@index([deletedAt])
 }
 
+// ========== Master data: Task ==========
+
+model Task {
+  id          String    @id @default(uuid())
+  code        String?   @unique // optional, vd "CUT", "SEW", "PACK"
+  name        String // "Cắt vải"
+  description String?   @db.Text
+  active      Boolean   @default(true)
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  orderTasks OrderTask[]
+
+  @@index([active])
+  @@index([deletedAt])
+}
+
 // ========== Core: Order ==========
 
 model Order {
@@ -152,6 +168,10 @@ model Order {
 
   status   OrderStatus @default(DRAFT)
   priority Priority    @default(NORMAL)
+
+  // Tổng tiến độ tính từ trung bình progressPct của các OrderTask.
+  // Cache field — denormalized; updated mỗi khi task progress thay đổi.
+  progressPct Int @default(0) // 0..100
 
   orderedAt  DateTime? // Ngày đặt hàng (từ Excel)
   expectedAt DateTime? // Deadline giao
@@ -168,6 +188,7 @@ model Order {
 
   items       OrderItem[]
   batches     OrderBatch[]
+  tasks       OrderTask[]
   updates     OrderUpdate[]
   attachments Attachment[]
   alerts      Alert[]
@@ -194,6 +215,34 @@ model OrderItem {
 
   @@unique([orderId, sizeId])
   @@index([orderId])
+}
+
+// 1 OrderTask = 1 task được pick vào 1 đơn (snapshot từ Task master)
+// Allow same task picked multiple times (no unique constraint on taskId)
+model OrderTask {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // taskId nullable: nếu Task master bị soft-delete thì snapshot vẫn giữ.
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id])
+
+  // Snapshot tên/mô tả lúc pick — không đổi khi master đổi.
+  nameSnapshot        String
+  descriptionSnapshot String? @db.Text
+
+  position    Int       @default(0) // thứ tự hiển thị (10, 20, 30, ...)
+  progressPct Int       @default(0) // 0..100. 100 = done.
+  notes       String?
+  startedAt   DateTime? // auto set lần đầu progressPct > 0
+  completedAt DateTime? // auto set khi progressPct = 100
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId, position])
+  @@index([taskId])
 }
 
 // 1 OrderBatch = 1 đợt chốt nhập của order

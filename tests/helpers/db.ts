@@ -18,6 +18,7 @@ export async function resetDb() {
   // Order children.
   await prisma.batchItem.deleteMany()
   await prisma.orderBatch.deleteMany()
+  await prisma.orderTask.deleteMany()
   await prisma.orderItem.deleteMany()
   await prisma.order.deleteMany()
   // Style children.
@@ -25,6 +26,7 @@ export async function resetDb() {
   await prisma.style.deleteMany()
   // Master data.
   await prisma.size.deleteMany()
+  await prisma.task.deleteMany()
   await prisma.orderCodeCounter.deleteMany()
   // Users last (referenced by ownedOrders, sessions, audit, etc.).
   await prisma.user.deleteMany()
