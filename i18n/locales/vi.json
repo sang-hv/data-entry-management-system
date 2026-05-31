@@ -106,6 +106,91 @@
     "deleteConfirm": "Xóa công đoạn \"{name}\"?",
     "createFirst": "Tạo công đoạn đầu tiên"
   },
+  "orders": {
+    "title": "Đơn hàng",
+    "subtitle": "Quản lý đơn đặt hàng, quy trình công đoạn và tiến độ",
+    "addOrder": "Thêm đơn",
+    "createTitle": "Tạo đơn mới",
+    "newOrder": "Đơn mới",
+    "searchPlaceholder": "Tìm theo mã đơn, mã mẫu, tên mẫu, biến thể...",
+    "empty": "Chưa có đơn nào",
+    "createFirst": "Tạo đơn đầu tiên",
+    "deleteConfirm": "Xóa đơn \"{code}\"?",
+    "cancelConfirm": "Hủy đơn \"{code}\"?",
+    "cancelReason": "Lý do hủy (tùy chọn)",
+    "fields": {
+      "code": "Mã đơn",
+      "codeHint": "Để trống để tự sinh (TN-YYYYMMDD-####)",
+      "styleVariant": "Mẫu áo",
+      "stylePicker": "Chọn mẫu áo",
+      "orderedAt": "Ngày đặt",
+      "expectedAt": "Ngày kỳ vọng giao",
+      "actualAt": "Ngày giao thực tế",
+      "priority": "Độ ưu tiên",
+      "notes": "Ghi chú",
+      "totalProgress": "Tổng tiến độ",
+      "owner": "Người phụ trách"
+    },
+    "table": {
+      "code": "Mã",
+      "style": "Mẫu",
+      "status": "Trạng thái",
+      "progress": "Tiến độ",
+      "ordered": "Đặt",
+      "deadline": "Deadline",
+      "tasks": "Tasks",
+      "items": "Items"
+    },
+    "status": {
+      "DRAFT": "Nháp",
+      "ACTIVE": "Đang chạy",
+      "COMPLETED": "Hoàn thành",
+      "CANCELLED": "Đã hủy"
+    },
+    "priority": {
+      "LOW": "Thấp",
+      "NORMAL": "Bình thường",
+      "HIGH": "Cao",
+      "URGENT": "Khẩn cấp"
+    },
+    "tabs": {
+      "info": "Thông tin",
+      "items": "Size & tỉ lệ",
+      "tasks": "Quy trình",
+      "timeline": "Lịch sử"
+    },
+    "items": {
+      "title": "Size & tỉ lệ",
+      "subtitle": "Khai báo size + tỉ lệ phân bổ cho đơn này",
+      "addItem": "Thêm size",
+      "noItems": "Chưa có size nào",
+      "ratio": "Tỉ lệ",
+      "size": "Kích cỡ"
+    },
+    "tasks": {
+      "title": "Quy trình công đoạn",
+      "subtitle": "Pick task từ thư viện, sắp xếp thứ tự, cập nhật tiến độ",
+      "pickTasks": "Pick công đoạn",
+      "addTasks": "Thêm công đoạn",
+      "noTasks": "Chưa có công đoạn nào",
+      "totalProgress": "Tổng tiến độ",
+      "step": "Bước {position}",
+      "completed": "Hoàn thành",
+      "inProgress": "Đang làm",
+      "notStarted": "Chưa làm",
+      "deleteTaskConfirm": "Xóa công đoạn \"{name}\" khỏi đơn?",
+      "updateProgress": "Cập nhật tiến độ",
+      "progressLabel": "Tiến độ (%)"
+    },
+    "timeline": {
+      "title": "Lịch sử thay đổi",
+      "noEntries": "Chưa có thay đổi nào"
+    },
+    "actions": {
+      "cancel": "Hủy đơn",
+      "delete": "Xóa đơn (mềm)"
+    }
+  },
   "styles": {
     "title": "Mẫu áo",
     "subtitle": "Master data mẫu áo. Mỗi mẫu có nhiều biến thể (màu / họa tiết).",
