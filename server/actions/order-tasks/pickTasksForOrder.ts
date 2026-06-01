@@ -51,7 +51,6 @@ export async function pickTasksForOrder(rawInput: unknown, ctx: ActionContext) {
           nameSnapshot: task.name,
           descriptionSnapshot: task.description,
           position: nextPos,
-          progressPct: 0,
         },
       })
       rows.push(row)

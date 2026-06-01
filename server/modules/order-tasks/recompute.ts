@@ -26,7 +26,7 @@ export async function recomputeOrderStatusAndProgress(orderId: string): Promise<
 
   const tasks = await prisma.orderTask.findMany({
     where: { orderId },
-    select: { progressPct: true },
+    select: { done: true },
   })
   const newStatus = computeOrderStatus(tasks)
   const newProgress = computeOrderProgress(tasks)

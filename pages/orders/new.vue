@@ -87,7 +87,7 @@ async function onSubmit() {
     <form class="space-y-5" @submit.prevent="onSubmit">
       <UCard>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <UFormField :label="t('orders.fields.code')" :hint="t('orders.fields.codeHint')">
+          <UFormField :label="t('orders.fields.code')" :help="t('orders.fields.codeHint')">
             <UInput v-model="form.code" placeholder="TN-20260515-0001" class="w-full" />
           </UFormField>
           <UFormField :label="t('orders.fields.priority')">

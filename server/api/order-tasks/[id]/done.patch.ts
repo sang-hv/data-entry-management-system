@@ -1,4 +1,4 @@
-import { updateOrderTaskProgress } from '../../../actions/order-tasks/updateOrderTaskProgress'
+import { setOrderTaskDone } from '../../../actions/order-tasks/setOrderTaskDone'
 import { buildContext, requireAuth, toHttpError } from '../../../utils/http'
 
 export default defineEventHandler(async (event) => {
@@ -7,10 +7,10 @@ export default defineEventHandler(async (event) => {
     const orderTaskId = getRouterParam(event, 'id')
     const ctx = buildContext(event)
     const body = await readBody(event)
-    return await updateOrderTaskProgress(
+    return await setOrderTaskDone(
       {
         orderTaskId,
-        progressPct: body?.progressPct,
+        done: body?.done,
         notes: body?.notes,
       },
       ctx,

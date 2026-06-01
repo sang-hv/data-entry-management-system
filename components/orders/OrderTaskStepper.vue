@@ -4,9 +4,8 @@ interface OrderTask {
   nameSnapshot: string
   descriptionSnapshot: string | null
   position: number
-  progressPct: number
+  done: boolean
   notes: string | null
-  startedAt: string | null
   completedAt: string | null
 }
 
@@ -16,39 +15,38 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update-progress': [taskId: string, progressPct: number, notes?: string]
+  'set-done': [taskId: string, done: boolean, notes?: string]
   'remove': [taskId: string]
 }>()
 
 const { t } = useI18n()
 
-const editing = ref<{ id: string, value: number, notes: string } | null>(null)
+const editing = ref<{ id: string, done: boolean, notes: string } | null>(null)
 
 function openEdit(task: OrderTask) {
   if (props.readonly) return
   editing.value = {
     id: task.id,
-    value: task.progressPct,
+    done: task.done,
     notes: task.notes ?? '',
   }
 }
 
 function applyEdit() {
   if (!editing.value) return
-  emit('update-progress', editing.value.id, editing.value.value, editing.value.notes)
+  emit('set-done', editing.value.id, editing.value.done, editing.value.notes)
   editing.value = null
+}
+
+function toggleDone(task: OrderTask) {
+  if (props.readonly) return
+  emit('set-done', task.id, !task.done, task.notes ?? undefined)
 }
 
 function remove(task: OrderTask) {
   if (props.readonly) return
   if (!confirm(t('orders.tasks.deleteTaskConfirm', { name: task.nameSnapshot }))) return
   emit('remove', task.id)
-}
-
-function statusLabel(t: OrderTask) {
-  if (t.progressPct >= 100) return 'completed'
-  if (t.progressPct > 0) return 'inProgress'
-  return 'notStarted'
 }
 </script>
 
@@ -59,24 +57,27 @@ function statusLabel(t: OrderTask) {
       :key="task.id"
       class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg p-3 flex items-start gap-3"
     >
-      <div
+      <button
+        type="button"
+        :disabled="props.readonly"
         :class="[
-          'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium',
-          task.progressPct >= 100
+          'shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors',
+          task.done
             ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-            : task.progressPct > 0
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-              : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+            : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+          props.readonly ? 'cursor-default' : 'cursor-pointer hover:ring-2 hover:ring-green-300',
         ]"
+        :aria-label="task.done ? t('orders.tasks.markIncomplete') : t('orders.tasks.markDone')"
+        @click="toggleDone(task)"
       >
-        <UIcon v-if="task.progressPct >= 100" name="i-lucide-check" class="w-4 h-4" />
+        <UIcon v-if="task.done" name="i-lucide-check" class="w-4 h-4" />
         <span v-else>{{ idx + 1 }}</span>
-      </div>
+      </button>
 
       <div class="flex-1 min-w-0">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <div class="font-medium truncate">
+            <div class="font-medium truncate" :class="task.done ? 'line-through text-gray-500' : ''">
               {{ task.nameSnapshot }}
             </div>
             <div v-if="task.descriptionSnapshot" class="text-xs text-gray-500 line-clamp-1 mt-0.5">
@@ -88,34 +89,22 @@ function statusLabel(t: OrderTask) {
           </div>
           <div class="shrink-0 flex items-center gap-1">
             <UBadge
-              v-if="task.progressPct >= 100"
+              v-if="task.done"
               size="xs"
               color="success"
               variant="soft"
             >
-              {{ t(`orders.tasks.completed`) }}
-            </UBadge>
-            <UBadge
-              v-else-if="task.progressPct > 0"
-              size="xs"
-              color="info"
-              variant="soft"
-            >
-              {{ task.progressPct }}%
+              {{ t('orders.tasks.completed') }}
             </UBadge>
             <UBadge v-else size="xs" color="neutral" variant="soft">
-              {{ t(`orders.tasks.${statusLabel(task)}`) }}
+              {{ t('orders.tasks.notStarted') }}
             </UBadge>
           </div>
         </div>
 
-        <div class="mt-2">
-          <OrdersOrderProgressBar :value="task.progressPct" size="xs" :hide-label="true" />
-        </div>
-
         <div v-if="!props.readonly" class="mt-2 flex items-center gap-1">
           <UButton size="xs" variant="ghost" icon="i-lucide-pencil" @click="openEdit(task)">
-            {{ t('orders.tasks.updateProgress') }}
+            {{ t('orders.tasks.editTask') }}
           </UButton>
           <UButton size="xs" variant="ghost" color="error" icon="i-lucide-trash-2" @click="remove(task)" />
         </div>
@@ -129,34 +118,15 @@ function statusLabel(t: OrderTask) {
 
   <UModal
     :open="!!editing"
-    :title="t('orders.tasks.updateProgress')"
+    :title="t('orders.tasks.editTask')"
     @update:open="(v: boolean) => !v && (editing = null)"
   >
     <template #body>
       <div v-if="editing" class="space-y-4">
-        <UFormField :label="t('orders.tasks.progressLabel')">
-          <div class="space-y-2">
-            <input
-              v-model.number="editing.value"
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              class="w-full"
-            >
-            <div class="flex items-center gap-2">
-              <UInput
-                v-model.number="editing.value"
-                type="number"
-                min="0"
-                max="100"
-                class="flex-1"
-              />
-              <span class="text-sm text-gray-500">%</span>
-            </div>
-          </div>
+        <UFormField :label="t('orders.tasks.doneLabel')">
+          <USwitch v-model="editing.done" />
         </UFormField>
-        <UFormField :label="t('common.labels.description')">
+        <UFormField :label="t('orders.tasks.notesLabel')">
           <UTextarea v-model="editing.notes" :rows="2" class="w-full" />
         </UFormField>
         <div class="flex justify-end gap-2 pt-2">

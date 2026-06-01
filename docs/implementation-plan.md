@@ -7,9 +7,10 @@
 > **Khác `overview.md`:** overview là tài liệu gửi khách (high-level, ngôn ngữ nghiệp vụ). File này là spec kỹ thuật chi tiết, có code thật.
 >
 > **Phiên bản:** 2.1 — 26/05/2026
-> **Status:** Updated for task-based workflow (M3 ready).
+> **Status:** Updated for task-based workflow (M3.1 — task done flag).
 > **Thay đổi v2:** rewrite domain từ "manufacturing project + BOM" sang "apparel order + style/size/batch" theo dữ liệu thật của khách (file Excel quản lý đơn đặt hàng). Drop `Material` và `Vendor` khỏi Phase 1.
 > **Thay đổi v2.1 (cho M3):** thay enum status cứng (7 giá trị) bằng task-based workflow. Thêm `Task` (master) + `OrderTask` (snapshot per order) với `progressPct` riêng. `Order.status` rút gọn `DRAFT/ACTIVE/COMPLETED/CANCELLED`, auto-derive từ task progress. `Order.progressPct` cache field tính từ `avg(OrderTask.progressPct)`.
+> **Thay đổi v2.2 (M3.1):** `OrderTask` bỏ `progressPct`/`startedAt`, dùng `done Boolean` (tick xong/chưa xong) + `notes` (ghi chú riêng cho task trong đơn). `Order.progressPct` giữ lại nhưng đổi nghĩa = `round(số task done / tổng × 100)`. Status COMPLETED khi mọi task `done`.
 
 ---
 
@@ -27,9 +28,9 @@
 | **Ngày đặt hàng** | `Order.orderedAt` | |
 | **Ảnh mẫu** | `StyleVariant.imageUrl` | Lưu ở storage, không lưu trong DB. |
 | **Task / Công đoạn** | `Task` (master) | Master data quy trình sản xuất, vd `Cắt vải`, `May`, `Ủi`, `Đóng gói`. |
-| **OrderTask** | `OrderTask` | Snapshot 1 task được pick vào 1 đơn — có `nameSnapshot`, `order` (thứ tự), `progressPct` (0..100). |
-| **Tổng tiến độ đơn** | `Order.progressPct` (cache) | Trung bình `progressPct` của các `OrderTask`. Auto-derive khi task progress thay đổi. |
-| **Trạng thái đơn** | `Order.status` (auto) | `DRAFT` (chưa pick task) → `ACTIVE` (có task, chưa xong) → `COMPLETED` (mọi task = 100%). `CANCELLED` set thủ công. |
+| **OrderTask** | `OrderTask` | Snapshot 1 task được pick vào 1 đơn — có `nameSnapshot`, `position` (thứ tự), `done` (xong/chưa), `notes` (ghi chú riêng cho task trong đơn). |
+| **Tổng tiến độ đơn** | `Order.progressPct` (cache) | `round(số OrderTask done / tổng × 100)`. Auto-derive khi trạng thái done của task thay đổi. |
+| **Trạng thái đơn** | `Order.status` (auto) | `DRAFT` (chưa pick task) → `ACTIVE` (có task, chưa xong hết) → `COMPLETED` (mọi task `done`). `CANCELLED` set thủ công. |
 
 ---
 
@@ -81,10 +82,10 @@ Mapping trực tiếp từ file Excel của khách sang schema mới:
 | `Số lượng chốt nhập đợt mới` | `BatchItem.quantity` | Mỗi đợt nhập (`OrderBatch`) có nhiều `BatchItem`, mỗi item ứng với 1 size. |
 | `Tổng` (80) | computed | `SUM(BatchItem.quantity)` của đợt nhập mới nhất hoặc của order. Không lưu. |
 | `Ngày Đặt Hàng` (15/5/2026) | `Order.orderedAt` | Date, không có time. |
-| (chưa có ở Excel) | `Order.status` | Enum: `DRAFT, ACTIVE, COMPLETED, CANCELLED`. Auto-derive từ task progress (xem section Order Tasks). |
-| (chưa có ở Excel) | `Order.progressPct` | Cache 0..100. Auto = `avg(OrderTask.progressPct)`. |
+| (chưa có ở Excel) | `Order.status` | Enum: `DRAFT, ACTIVE, COMPLETED, CANCELLED`. Auto-derive từ trạng thái done của task (xem section Order Tasks). |
+| (chưa có ở Excel) | `Order.progressPct` | Cache 0..100. Auto = `round(số task done / tổng × 100)`. |
 | (chưa có ở Excel) | `Order.notes` | Free text. |
-| (chưa có ở Excel) | `Order.tasks` | Quy trình công đoạn — pick từ master `Task` rồi sắp xếp thứ tự. Mỗi task có `progressPct` riêng. |
+| (chưa có ở Excel) | `Order.tasks` | Quy trình công đoạn — pick từ master `Task` rồi sắp xếp thứ tự. Mỗi task tick `done` + có `notes` riêng. |
 
 ### Quan hệ tổng quan
 
@@ -105,10 +106,10 @@ Style (AO083)
                        ├── BatchItem [size=XL, qty=8]
                        └── BatchItem [size=XXL, qty=8]
 
-                └── OrderTask (order=10, "Cắt vải", progressPct=100, ✓)
-                └── OrderTask (order=20, "May", progressPct=100, ✓)
-                └── OrderTask (order=30, "Ủi", progressPct=75)
-                └── OrderTask (order=40, "Đóng gói", progressPct=0)
+                └── OrderTask (position=10, "Cắt vải", done=true, ✓)
+                └── OrderTask (position=20, "May", done=true, ✓)
+                └── OrderTask (position=30, "Ủi", done=false)
+                └── OrderTask (position=40, "Đóng gói", done=false)
 
 Size (master)        ── code (S/M/L/XL/XXL/...), order, active
 Task (master)        ── code?, name (Cắt vải, May, ...), description, active
@@ -121,8 +122,8 @@ Task (master)        ── code?, name (Cắt vải, May, ...), description, ac
 - ✅ Đổi `Project` → `Order`.
 - ✅ Thêm `Style`, `StyleVariant`, `Size`, `OrderItem`, `OrderBatch`, `BatchItem`.
 - ✅ Thêm `Task` (master) + `OrderTask` (snapshot) cho quy trình công đoạn.
-- ✅ Status đơn đơn giản hóa: `DRAFT/ACTIVE/COMPLETED/CANCELLED` — auto-derive từ task progress.
-- ✅ `Order.progressPct` cache field, tính từ trung bình task progress.
+- ✅ Status đơn đơn giản hóa: `DRAFT/ACTIVE/COMPLETED/CANCELLED` — auto-derive từ trạng thái done của task.
+- ✅ `Order.progressPct` cache field, tính từ tỉ lệ task đã done.
 
 ---
 
@@ -535,8 +536,8 @@ model Order {
   status   OrderStatus @default(DRAFT)
   priority Priority    @default(NORMAL)
 
-  // Tổng tiến độ tính từ trung bình progressPct của các OrderTask.
-  // Cache field — denormalized; updated mỗi khi task progress thay đổi.
+  // % công đoạn đã hoàn thành = round(số OrderTask done / tổng × 100).
+  // Cache field — denormalized; updated mỗi khi trạng thái done của task thay đổi.
   progressPct Int @default(0) // 0..100
 
   orderedAt  DateTime? // Ngày đặt hàng (từ Excel)
@@ -580,16 +581,15 @@ model OrderTask {
   nameSnapshot        String
   descriptionSnapshot String?  @db.Text
 
-  order       Int      @default(0) // thứ tự hiển thị (10, 20, 30, ...)
-  progressPct Int      @default(0) // 0..100. 100 = done.
-  notes       String?
-  startedAt   DateTime? // auto set lần đầu progressPct > 0
-  completedAt DateTime? // auto set khi progressPct = 100
+  position    Int       @default(0) // thứ tự hiển thị (10, 20, 30, ...)
+  done        Boolean   @default(false) // tick xong / chưa xong
+  notes       String? // ghi chú riêng cho task trong đơn này
+  completedAt DateTime? // auto set khi done=true, clear khi done=false
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orderId, order])
+  @@index([orderId, position])
   @@index([taskId])
 }
 
@@ -930,7 +930,7 @@ export async function createOrder(rawInput: unknown, ctx: ActionContext): Promis
 | 7 | `setBatchItems` | write | batchId, items[] (replace) | `{ items[] }` |
 | 8 | `pickTasksForOrder` ⭐ | write | orderId, taskIds[] (theo thứ tự) | `{ tasks[] }` (clone snapshot từ master) |
 | 9 | `setOrderTasks` | write | orderId, items[] (replace toàn bộ, có thể reorder) | `{ tasks[] }` |
-| 10 | `updateOrderTaskProgress` ⭐ | write | orderTaskId, progressPct, notes? | `{ task, order: { status, progressPct } }` |
+| 10 | `setOrderTaskDone` ⭐ | write | orderTaskId, done, notes? | `{ task, order: { status, progressPct } }` |
 | 11 | `getOrderByCode` | read | code | `{ order, items, batches, tasks, alerts, totals }` |
 | 12 | `searchOrders` | read | filter, pagination, sort | `{ items[], total, page, pageSize }` |
 | 13 | `getUrgentOrders` | read | thresholdDays? | `Order[]` |
@@ -1038,10 +1038,10 @@ export const SetOrderTasksInput = z.object({
   })),
 })
 
-// updateOrderTaskProgress — cập nhật tiến độ 1 task; trigger order status/progress recompute
-export const UpdateOrderTaskProgressInput = z.object({
+// setOrderTaskDone — tick xong/chưa xong cho 1 task; trigger order status/progress recompute
+export const SetOrderTaskDoneInput = z.object({
   orderTaskId: z.string().uuid(),
-  progressPct: z.number().int().min(0).max(100),
+  done: z.boolean(),
   notes: z.string().max(2000).optional(),
 })
 
@@ -1152,7 +1152,7 @@ Trọng số Phase 1:
 | `POST` | `/api/orders/:id/batches` | createBatch |
 | `POST` | `/api/orders/:id/tasks` | pickTasksForOrder |
 | `PUT` | `/api/orders/:id/tasks` | setOrderTasks |
-| `PATCH` | `/api/order-tasks/:id/progress` | updateOrderTaskProgress |
+| `PATCH` | `/api/order-tasks/:id/done` | setOrderTaskDone |
 | `POST` | `/api/orders/:id/attachments` | attachFileToOrder (multipart) |
 | `DELETE` | `/api/attachments/:id` | deleteAttachment |
 | `GET` | `/api/batches/:id` | getBatchById (auxiliary) |
@@ -1441,13 +1441,13 @@ Mỗi milestone là **1 đơn vị có thể demo được**. Sau mỗi mileston
 - Module `orders`: order.repo, order.code-gen, order.totals, order.progress (compute từ task), types.
 - Module `order-tasks`: orderTask.repo, types.
 - Actions order: `createOrder`, `updateOrder`, `cancelOrder` (replace updateOrderStatus), `setOrderItems`, `deleteOrder`, `getOrderById`, `getOrderByCode`, `searchOrders`, `getOrderTimeline`.
-- Actions order-tasks: `pickTasksForOrder`, `setOrderTasks`, `updateOrderTaskProgress`.
+- Actions order-tasks: `pickTasksForOrder`, `setOrderTasks`, `setOrderTaskDone`.
 - API tương ứng.
 - FE:
   - `pages/tasks/index.vue` (master CRUD bảng đơn giản).
   - `pages/orders/index.vue` (list + filter + search + status badge + progress bar).
   - `pages/orders/new.vue` (form: code, style picker, ngày đặt, ngày kỳ vọng, priority, notes; bảng items size+ratio; pick tasks từ master + reorder).
-  - `pages/orders/[id].vue` với tab Info, Items, Quy trình (stepper hiển thị task list với % và tick), Timeline.
+  - `pages/orders/[id].vue` với tab Info, Items, Quy trình (stepper hiển thị task list với tick done + ghi chú), Timeline.
   - Component `OrderForm`, `OrderList`, `OrderStatusBadge`, `OrderItemsEditor`, `OrderTaskStepper`, `TaskPicker`, `OrderTimeline`, `StylePicker`.
 - Test integration cho tasks + order-tasks + auto-derive status.
 
@@ -1455,10 +1455,12 @@ Mỗi milestone là **1 đơn vị có thể demo được**. Sau mỗi mileston
 - [ ] Tạo 4 task master: `Cắt vải`, `May`, `Ủi`, `Đóng gói`.
 - [ ] Tạo order `TN150501` với variant AO083-TRANG KE XANH, items [S:3, M:3, L:2, XL:1, XXL:1] → status `DRAFT`.
 - [ ] Pick 4 task vào order theo thứ tự → status auto thành `ACTIVE`, `progressPct = 0`.
-- [ ] Cập nhật `Cắt vải` = 100% → có tick trên stepper, `Order.progressPct = 25`.
-- [ ] Cập nhật `May` = 50% → `Order.progressPct = (100+50+0+0)/4 = 37`.
-- [ ] Cập nhật cả 4 task = 100% → `status = COMPLETED` tự động.
-- [ ] Cancel order → status = `CANCELLED`, không thể cập nhật task progress nữa.
+- [ ] Tick `Cắt vải` done → có tick trên stepper, `Order.progressPct = 25` (1/4).
+- [ ] Tick thêm `May` done → `Order.progressPct = 50` (2/4).
+- [ ] Tick cả 4 task done → `status = COMPLETED` tự động, `progressPct = 100`, `actualAt = now`.
+- [ ] Bỏ tick 1 task → `status` quay về `ACTIVE`, `actualAt` clear.
+- [ ] Thêm ghi chú riêng cho 1 task trong đơn → lưu vào `OrderTask.notes`, không ảnh hưởng task master hay đơn khác.
+- [ ] Cancel order → status = `CANCELLED`, không thể tick task nữa.
 - [ ] Đổi tên `Task.name` master sau khi đã pick vào order → tên trong `OrderTask.nameSnapshot` không đổi.
 - [ ] Xóa task master đang được order dùng → conflict error.
 - [ ] Hai tab cùng sửa 1 order → tab thứ 2 báo "Resource was modified".

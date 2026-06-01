@@ -169,18 +169,20 @@
     },
     "tasks": {
       "title": "Quy trình công đoạn",
-      "subtitle": "Pick task từ thư viện, sắp xếp thứ tự, cập nhật tiến độ",
+      "subtitle": "Pick task từ thư viện, sắp xếp thứ tự, đánh dấu hoàn thành",
       "pickTasks": "Pick công đoạn",
       "addTasks": "Thêm công đoạn",
       "noTasks": "Chưa có công đoạn nào",
       "totalProgress": "Tổng tiến độ",
       "step": "Bước {position}",
       "completed": "Hoàn thành",
-      "inProgress": "Đang làm",
-      "notStarted": "Chưa làm",
+      "notStarted": "Chưa xong",
       "deleteTaskConfirm": "Xóa công đoạn \"{name}\" khỏi đơn?",
-      "updateProgress": "Cập nhật tiến độ",
-      "progressLabel": "Tiến độ (%)"
+      "editTask": "Sửa công đoạn",
+      "markDone": "Đánh dấu hoàn thành",
+      "markIncomplete": "Đánh dấu chưa xong",
+      "doneLabel": "Đã hoàn thành",
+      "notesLabel": "Ghi chú"
     },
     "timeline": {
       "title": "Lịch sử thay đổi",

@@ -5,9 +5,8 @@ interface OrderTask {
   nameSnapshot: string
   descriptionSnapshot: string | null
   position: number
-  progressPct: number
+  done: boolean
   notes: string | null
-  startedAt: string | null
   completedAt: string | null
 }
 
@@ -101,11 +100,11 @@ async function pickTasks(taskIds: string[]) {
   }
 }
 
-async function updateTaskProgress(taskId: string, progressPct: number, notes?: string) {
+async function updateTaskDone(taskId: string, done: boolean, notes?: string) {
   try {
-    await $fetch(`/api/order-tasks/${taskId}/progress`, {
+    await $fetch(`/api/order-tasks/${taskId}/done`, {
       method: 'PATCH',
-      body: { progressPct, notes },
+      body: { done, notes },
     })
     toast.add({ title: t('common.messages.updated'), color: 'success' })
     await refresh()
@@ -130,7 +129,7 @@ async function removeTask(taskId: string) {
           taskId: t.taskId,
           nameSnapshot: t.nameSnapshot,
           descriptionSnapshot: t.descriptionSnapshot,
-          progressPct: t.progressPct,
+          done: t.done,
           notes: t.notes,
         })),
       },
@@ -329,7 +328,7 @@ const tabItems = computed(() => [
       <OrdersOrderTaskStepper
         :tasks="data.order.tasks"
         :readonly="data.order.status === 'CANCELLED'"
-        @update-progress="updateTaskProgress"
+        @set-done="updateTaskDone"
         @remove="removeTask"
       />
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { ActionContext } from '~/server/actions/_base/context'
 import { pickTasksForOrder } from '~/server/actions/order-tasks/pickTasksForOrder'
 import { setOrderTasks } from '~/server/actions/order-tasks/setOrderTasks'
-import { updateOrderTaskProgress } from '~/server/actions/order-tasks/updateOrderTaskProgress'
+import { setOrderTaskDone } from '~/server/actions/order-tasks/setOrderTaskDone'
 import { cancelOrder } from '~/server/actions/orders/cancelOrder'
 import { createOrder } from '~/server/actions/orders/createOrder'
 import { prisma } from '~/server/lib/prisma'
@@ -132,8 +132,8 @@ describe('order-tasks actions', () => {
     })
   })
 
-  describe('updateOrderTaskProgress + auto-derive', () => {
-    it('updates progressPct and recomputes order.progressPct', async () => {
+  describe('setOrderTaskDone + auto-derive', () => {
+    it('marks task done and recomputes order.progressPct', async () => {
       const { ctx, variant, tasks } = await setupFixtures()
       const order = await createOrder({ styleVariantId: variant.id }, ctx)
       const picked = await pickTasksForOrder(
@@ -141,27 +141,27 @@ describe('order-tasks actions', () => {
         ctx,
       )
 
-      // Update task[0] = 50%
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 50 },
+      // Mark task[0] done
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: true },
         ctx,
       )
       let o = await prisma.order.findUnique({ where: { id: order.order.id } })
-      expect(o!.progressPct).toBe(13) // 50/4 = 12.5 → 13
+      expect(o!.progressPct).toBe(25) // 1/4 done = 25
       expect(o!.status).toBe('ACTIVE')
+      const t0 = await prisma.orderTask.findUnique({ where: { id: picked.tasks[0]!.id } })
+      expect(t0!.completedAt).not.toBeNull()
 
-      // Update task[0] = 100%
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 100 },
+      // Mark task[1] done
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[1]!.id, done: true },
         ctx,
       )
       o = await prisma.order.findUnique({ where: { id: order.order.id } })
-      expect(o!.progressPct).toBe(25) // 100/4 = 25
-      const t0 = await prisma.orderTask.findUnique({ where: { id: picked.tasks[0]!.id } })
-      expect(t0!.completedAt).not.toBeNull()
+      expect(o!.progressPct).toBe(50) // 2/4 done = 50
     })
 
-    it('transitions ACTIVE → COMPLETED when all tasks reach 100', async () => {
+    it('transitions ACTIVE → COMPLETED when all tasks are done', async () => {
       const { ctx, variant, tasks } = await setupFixtures()
       const order = await createOrder({ styleVariantId: variant.id }, ctx)
       const picked = await pickTasksForOrder(
@@ -169,16 +169,16 @@ describe('order-tasks actions', () => {
         ctx,
       )
 
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 100 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: true },
         ctx,
       )
       let o = await prisma.order.findUnique({ where: { id: order.order.id } })
       expect(o!.status).toBe('ACTIVE')
       expect(o!.actualAt).toBeNull()
 
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[1]!.id, progressPct: 100 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[1]!.id, done: true },
         ctx,
       )
       o = await prisma.order.findUnique({ where: { id: order.order.id } })
@@ -193,19 +193,19 @@ describe('order-tasks actions', () => {
       expect(updates).toHaveLength(1)
     })
 
-    it('reverts COMPLETED → ACTIVE when a task drops below 100', async () => {
+    it('reverts COMPLETED → ACTIVE when a task is un-done', async () => {
       const { ctx, variant, tasks } = await setupFixtures()
       const order = await createOrder({ styleVariantId: variant.id }, ctx)
       const picked = await pickTasksForOrder(
         { orderId: order.order.id, taskIds: tasks.slice(0, 2).map((t) => t.id) },
         ctx,
       )
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 100 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: true },
         ctx,
       )
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[1]!.id, progressPct: 100 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[1]!.id, done: true },
         ctx,
       )
       let o = await prisma.order.findUnique({ where: { id: order.order.id } })
@@ -213,13 +213,13 @@ describe('order-tasks actions', () => {
       expect(o!.actualAt).not.toBeNull()
 
       // Revert
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 80 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: false },
         ctx,
       )
       o = await prisma.order.findUnique({ where: { id: order.order.id } })
       expect(o!.status).toBe('ACTIVE')
-      expect(o!.progressPct).toBe(90)
+      expect(o!.progressPct).toBe(50)
       expect(o!.actualAt).toBeNull()
     })
 
@@ -233,14 +233,14 @@ describe('order-tasks actions', () => {
       await cancelOrder({ id: order.order.id, version: 0 }, ctx)
 
       await expect(
-        updateOrderTaskProgress(
-          { orderTaskId: picked.tasks[0]!.id, progressPct: 50 },
+        setOrderTaskDone(
+          { orderTaskId: picked.tasks[0]!.id, done: true },
           ctx,
         ),
       ).rejects.toThrow(/cancelled/i)
     })
 
-    it('sets startedAt the first time progressPct goes > 0', async () => {
+    it('clears completedAt when task is un-done', async () => {
       const { ctx, variant, tasks } = await setupFixtures()
       const order = await createOrder({ styleVariantId: variant.id }, ctx)
       const picked = await pickTasksForOrder(
@@ -248,31 +248,43 @@ describe('order-tasks actions', () => {
         ctx,
       )
 
-      const beforeFirst = await prisma.orderTask.findUnique({
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: true },
+        ctx,
+      )
+      const afterDone = await prisma.orderTask.findUnique({
         where: { id: picked.tasks[0]!.id },
       })
-      expect(beforeFirst!.startedAt).toBeNull()
+      expect(afterDone!.done).toBe(true)
+      expect(afterDone!.completedAt).not.toBeNull()
 
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 25 },
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: false },
+        ctx,
+      )
+      const afterUndone = await prisma.orderTask.findUnique({
+        where: { id: picked.tasks[0]!.id },
+      })
+      expect(afterUndone!.done).toBe(false)
+      expect(afterUndone!.completedAt).toBeNull()
+    })
+
+    it('saves per-order-task notes', async () => {
+      const { ctx, variant, tasks } = await setupFixtures()
+      const order = await createOrder({ styleVariantId: variant.id }, ctx)
+      const picked = await pickTasksForOrder(
+        { orderId: order.order.id, taskIds: [tasks[0]!.id] },
+        ctx,
+      )
+
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[0]!.id, done: false, notes: 'Ủi nhiệt thấp vì vải mỏng' },
         ctx,
       )
       const after = await prisma.orderTask.findUnique({
         where: { id: picked.tasks[0]!.id },
       })
-      expect(after!.startedAt).not.toBeNull()
-
-      const startedAt = after!.startedAt
-      // Second update should NOT change startedAt
-      await new Promise((r) => setTimeout(r, 20))
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[0]!.id, progressPct: 50 },
-        ctx,
-      )
-      const after2 = await prisma.orderTask.findUnique({
-        where: { id: picked.tasks[0]!.id },
-      })
-      expect(after2!.startedAt!.getTime()).toBe(startedAt!.getTime())
+      expect(after!.notes).toBe('Ủi nhiệt thấp vì vải mỏng')
     })
   })
 
@@ -290,8 +302,8 @@ describe('order-tasks actions', () => {
         {
           orderId: order.order.id,
           items: [
-            { taskId: tasks[2]!.id, nameSnapshot: 'Ủi', progressPct: 0 },
-            { taskId: tasks[3]!.id, nameSnapshot: 'Đóng gói', progressPct: 0 },
+            { taskId: tasks[2]!.id, nameSnapshot: 'Ủi', done: false },
+            { taskId: tasks[3]!.id, nameSnapshot: 'Đóng gói', done: false },
           ],
         },
         ctx,
@@ -327,9 +339,9 @@ describe('order-tasks actions', () => {
         { orderId: order.order.id, taskIds: tasks.slice(0, 3).map((t) => t.id) },
         ctx,
       )
-      // Update progress on task[1] = 50
-      await updateOrderTaskProgress(
-        { orderTaskId: picked.tasks[1]!.id, progressPct: 50 },
+      // Mark task[1] done
+      await setOrderTaskDone(
+        { orderTaskId: picked.tasks[1]!.id, done: true },
         ctx,
       )
 
@@ -342,19 +354,19 @@ describe('order-tasks actions', () => {
               id: picked.tasks[1]!.id,
               taskId: tasks[1]!.id,
               nameSnapshot: 'May',
-              progressPct: 50,
+              done: true,
             },
             {
               id: picked.tasks[2]!.id,
               taskId: tasks[2]!.id,
               nameSnapshot: 'Ủi',
-              progressPct: 0,
+              done: false,
             },
             {
               id: picked.tasks[0]!.id,
               taskId: tasks[0]!.id,
               nameSnapshot: 'Cắt vải',
-              progressPct: 0,
+              done: false,
             },
           ],
         },
@@ -366,8 +378,8 @@ describe('order-tasks actions', () => {
         orderBy: { position: 'asc' },
       })
       expect(orderTasks.map((t) => t.nameSnapshot)).toEqual(['May', 'Ủi', 'Cắt vải'])
-      // progress preserved on task that we moved
-      expect(orderTasks[0]!.progressPct).toBe(50)
+      // done state preserved on task that we moved
+      expect(orderTasks[0]!.done).toBe(true)
     })
   })
 })

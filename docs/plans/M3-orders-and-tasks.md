@@ -3,6 +3,12 @@
 > **Status:** ✅ Complete (tag `m3-orders-tasks`)
 > **Format:** post-execution record. Decisions + execution notes + lessons for M4.
 > **Reference:** schema chi tiết ở `docs/implementation-plan.md` mục 5; actions ở mục 7.
+>
+> **Cập nhật v2.2 (02/06/2026 — trước M4):** task trong đơn chuyển từ `progressPct` (0..100)
+> sang boolean `done` (tick xong/chưa xong) + `notes` riêng cho task trong đơn. `Order.progressPct`
+> đổi nghĩa = `round(số task done / tổng × 100)`. Action `updateOrderTaskProgress` → `setOrderTaskDone`,
+> route `/api/order-tasks/:id/progress` → `/done`, bỏ field `OrderTask.startedAt`.
+> Chi tiết: `docs/plans/M3.1-task-done-flag.md`.
 
 **Goal:** Tạo đơn đặt hàng đầu-cuối với items (size + tỉ lệ), pick task quy trình từ thư viện, cập nhật tiến độ để auto-derive trạng thái + tổng tiến độ đơn.
 

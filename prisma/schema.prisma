@@ -169,8 +169,8 @@ model Order {
   status   OrderStatus @default(DRAFT)
   priority Priority    @default(NORMAL)
 
-  // Tổng tiến độ tính từ trung bình progressPct của các OrderTask.
-  // Cache field — denormalized; updated mỗi khi task progress thay đổi.
+  // % công đoạn đã hoàn thành = round(số OrderTask done / tổng × 100).
+  // Cache field — denormalized; updated mỗi khi trạng thái done của task thay đổi.
   progressPct Int @default(0) // 0..100
 
   orderedAt  DateTime? // Ngày đặt hàng (từ Excel)
@@ -233,10 +233,9 @@ model OrderTask {
   descriptionSnapshot String? @db.Text
 
   position    Int       @default(0) // thứ tự hiển thị (10, 20, 30, ...)
-  progressPct Int       @default(0) // 0..100. 100 = done.
-  notes       String?
-  startedAt   DateTime? // auto set lần đầu progressPct > 0
-  completedAt DateTime? // auto set khi progressPct = 100
+  done        Boolean   @default(false) // tick xong / chưa xong
+  notes       String? // ghi chú riêng cho task trong đơn này
+  completedAt DateTime? // auto set khi done=true, clear khi done=false
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

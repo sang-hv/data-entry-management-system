@@ -5,7 +5,8 @@
 > **Mục đích:** Trình bày phạm vi, kiến trúc và lộ trình giải pháp ở mức tổng quan để khách hàng duyệt trước khi triển khai.
 > **Đối tượng đọc:** Người ra quyết định nghiệp vụ và người duyệt giải pháp kỹ thuật.
 > **Thay đổi v2:** điều chỉnh domain theo dữ liệu thật của khách (file Excel quản lý đơn đặt hàng áo) — bỏ phần vật tư/nhà cung cấp khỏi Phase 1, thêm quản lý mẫu áo + tỉ lệ size + đợt nhập.
-> **Thay đổi v2.1:** chuyển trạng thái đơn từ enum 7 bước cứng sang **quy trình task động** — mỗi đơn pick các task từ thư viện và sắp xếp thứ tự, tiến độ tính từ % task. Trạng thái đơn rút gọn còn 4 (Nháp / Đang chạy / Hoàn thành / Hủy) và auto-derive.
+> **Thay đổi v2.1:** chuyển trạng thái đơn từ enum 7 bước cứng sang **quy trình task động** — mỗi đơn pick các task từ thư viện và sắp xếp thứ tự. Trạng thái đơn rút gọn còn 4 (Nháp / Đang chạy / Hoàn thành / Hủy) và auto-derive.
+> **Thay đổi v2.2:** task trong đơn chuyển từ tiến độ % sang **tick xong / chưa xong**, kèm **ghi chú riêng cho từng task trong đơn**. Tiến độ đơn = tỉ lệ task đã hoàn thành.
 
 ---
 
@@ -81,7 +82,7 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 - Mỗi đơn gắn với một mẫu áo cụ thể (chọn từ danh sách mẫu đã có).
 - Nhập đầy đủ thông tin: ngày đặt, ngày kỳ vọng giao, độ ưu tiên, ghi chú.
 - Sửa thông tin bất kỳ lúc nào, có lưu lịch sử thay đổi.
-- Trạng thái đơn (tự động): *Nháp* (chưa pick task) → *Đang chạy* (có task, chưa xong) → *Hoàn thành* (mọi task = 100%). Có thể *Hủy* thủ công bất kỳ lúc nào.
+- Trạng thái đơn (tự động): *Nháp* (chưa pick task) → *Đang chạy* (có task, chưa xong hết) → *Hoàn thành* (mọi task đã xong). Có thể *Hủy* thủ công bất kỳ lúc nào.
 - Xóa mềm (soft delete): đơn xóa đi vẫn còn trong hệ thống, có thể khôi phục.
 
 ### Quản lý mẫu áo (Style)
@@ -107,10 +108,10 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 
 - Có **thư viện task** dùng chung — admin tạo các công đoạn chuẩn của xưởng (ví dụ: *Cắt vải*, *May*, *Ủi*, *Đóng gói*).
 - Mỗi đơn hàng pick danh sách task từ thư viện và **sắp xếp thứ tự** thực hiện. Có thể pick cùng 1 task nhiều lần (vd kiểm hàng nhiều đợt).
-- Cập nhật **tiến độ % cho từng task** (0 → 100). Khi đạt 100% thì task được đánh dấu hoàn thành (✓).
-- Hiển thị quy trình dạng **stepper**: `Cắt vải ✓ → May ✓ → Ủi 75% → Đóng gói`.
-- **Trạng thái đơn tự động**: chưa có task = *Nháp*; có task chưa xong = *Đang chạy*; mọi task 100% = *Hoàn thành*.
-- **Tổng tiến độ đơn** = trung bình tiến độ các task. Hiển thị thanh % trong danh sách đơn để theo dõi nhanh.
+- Mỗi task chỉ cần **tick xong / chưa xong** (✓). Có thể thêm **ghi chú riêng cho task đó trong đơn** (vd "Ủi nhiệt thấp vì vải mỏng") — không ảnh hưởng đơn khác.
+- Hiển thị quy trình dạng **stepper**: `Cắt vải ✓ → May ✓ → Ủi → Đóng gói`.
+- **Trạng thái đơn tự động**: chưa có task = *Nháp*; có task chưa xong hết = *Đang chạy*; mọi task đã xong = *Hoàn thành*.
+- **Tổng tiến độ đơn** = tỉ lệ task đã hoàn thành (vd 2/4 task xong = 50%). Hiển thị thanh % trong danh sách đơn để theo dõi nhanh.
 - Khi đổi tên task trong thư viện, các đơn cũ **giữ nguyên tên đã pick** (snapshot) — không ảnh hưởng báo cáo cũ.
 - Tổng số lượng đơn được tính tự động (cộng dồn các đợt), không phải nhập tay.
 
@@ -160,7 +161,7 @@ Phase 1, hệ thống được sử dụng bởi **một người dùng quản t
 | Size master + Order Items (size + tỉ lệ) | **Must** |
 | Đợt nhập + apply ratio | **Must** |
 | Tổng tự động tính | **Must** |
-| Task master + Quy trình công đoạn (pick + reorder + tiến độ %) | **Must** |
+| Task master + Quy trình công đoạn (pick + reorder + tick done + ghi chú) | **Must** |
 | Trạng thái đơn auto-derive từ task | **Must** |
 | Cảnh báo tự động (deadline, thiếu thông tin, thiếu task) | **Must** |
 | Dashboard tổng quan | **Must** |
@@ -200,7 +201,7 @@ Hệ thống được tổ chức thành các module độc lập, mỗi module 
 | **Orders** | Quản lý đơn đặt hàng, trạng thái auto-derive, lịch sử | ✅ |
 | **Order Items** | Khai báo size + tỉ lệ cho từng đơn | ✅ |
 | **Order Batches** | Đợt chốt nhập (số lượng theo từng size) | ✅ |
-| **Tasks & Order Tasks** | Master data quy trình + pick + tiến độ % cho từng đơn | ✅ |
+| **Tasks & Order Tasks** | Master data quy trình + pick + tick done + ghi chú cho từng đơn | ✅ |
 | **Styles & Variants** | Master data mẫu áo + biến thể + ảnh | ✅ |
 | **Sizes** | Master data kích cỡ (S/M/L/XL/XXL + mở rộng) | ✅ |
 | **Alerts** | Đánh giá quy tắc cảnh báo, sinh và đóng cảnh báo | ✅ |
@@ -322,7 +323,7 @@ Một số tác vụ chạy ngầm theo lịch (mỗi 10 phút):
    ┌────────────┐   │          │         ┌──────────────────┐
    │    Task    │◄──│          │────────►│   OrderTask      │
    │ (Cắt vải,  │   │          │         │ (snapshot name + │
-   │   May ...) │   │          │         │  thứ tự + % done)│
+   │   May ...) │   │          │         │  thứ tự + done)  │
    └────────────┘   │          │         └──────────────────┘
                     │          │
                     │          │         ┌──────────────┐
@@ -351,7 +352,7 @@ Một số tác vụ chạy ngầm theo lịch (mỗi 10 phút):
 | **OrderBatch** | Đợt chốt nhập | orderId, batchNumber, batchedAt, note |
 | **BatchItem** | Số lượng cho một size trong một đợt | batchId, sizeId, quantity |
 | **Task** | Master data quy trình (Cắt vải, May...) | code?, name, description, active |
-| **OrderTask** | Task được pick vào 1 đơn (snapshot) | orderId, taskId?, **nameSnapshot**, order, **progressPct**, startedAt, completedAt |
+| **OrderTask** | Task được pick vào 1 đơn (snapshot) | orderId, taskId?, **nameSnapshot**, position, **done**, notes, completedAt |
 | **OrderUpdate** | Lịch sử thay đổi trạng thái đơn | orderId, fromStatus, toStatus, note, **source** |
 | **Attachment** | Tệp đính kèm | orderId, filename, mimeType, sizeBytes, storagePath |
 | **Alert** | Cảnh báo từ rule engine | orderId, ruleCode, severity, message, status |
@@ -525,7 +526,7 @@ Phase 3 chỉ làm khi Phase 2 đã ổn định và có đủ dữ liệu lịc
 | **Size / Kích cỡ** | S/M/L/XL/XXL — master data, có thể mở rộng. |
 | **Order Item** | Một dòng "size + tỉ lệ" của một đơn. |
 | **Task / Công đoạn** | Một bước trong quy trình sản xuất (Cắt vải, May, Ủi, Đóng gói). Master data dùng chung. |
-| **Order Task** | Một task được pick vào 1 đơn — có thứ tự + tiến độ % riêng. Snapshot tên lúc pick. |
+| **Order Task** | Một task được pick vào 1 đơn — có thứ tự, tick xong/chưa xong + ghi chú riêng. Snapshot tên lúc pick. |
 | **Batch / Đợt nhập** | Một đợt chốt số lượng — mỗi đơn có thể có nhiều đợt theo thời gian. |
 | **Ratio / Tỉ lệ** | Tỉ lệ phân bổ size (3:3:2:1:1). Nhân với multiplier ra số lượng cụ thể. |
 | **Multiplier** | Số nhân với tỉ lệ. Ví dụ ratio 3:3:2:1:1 × 8 = qty 24:24:16:8:8. |

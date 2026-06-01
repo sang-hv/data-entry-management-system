@@ -6,14 +6,14 @@ import { auditRepo } from '../../modules/audit/audit.repo'
 import { orderTaskRepo } from '../../modules/order-tasks/orderTask.repo'
 import { recomputeOrderStatusAndProgress } from '../../modules/order-tasks/recompute'
 
-export const UpdateOrderTaskProgressInput = z.object({
+export const SetOrderTaskDoneInput = z.object({
   orderTaskId: z.string().uuid(),
-  progressPct: z.number().int().min(0).max(100),
+  done: z.boolean(),
   notes: z.string().max(2000).optional(),
 })
 
-export async function updateOrderTaskProgress(rawInput: unknown, ctx: ActionContext) {
-  const input = UpdateOrderTaskProgressInput.parse(rawInput)
+export async function setOrderTaskDone(rawInput: unknown, ctx: ActionContext) {
+  const input = SetOrderTaskDoneInput.parse(rawInput)
   if (!ctx.actor) throw new ValidationError('Action requires authenticated actor')
 
   const before = await orderTaskRepo.findById(input.orderTaskId)
@@ -22,15 +22,11 @@ export async function updateOrderTaskProgress(rawInput: unknown, ctx: ActionCont
     throw new ValidationError('Cannot update task on a cancelled order')
   }
 
-  const startedAt = before.startedAt ?? (input.progressPct > 0 ? new Date() : null)
-  const completedAt = input.progressPct >= 100
-    ? (before.completedAt ?? new Date())
-    : null
+  const completedAt = input.done ? (before.completedAt ?? new Date()) : null
 
   const updated = await orderTaskRepo.update(input.orderTaskId, {
-    progressPct: input.progressPct,
+    done: input.done,
     notes: input.notes ?? before.notes,
-    startedAt,
     completedAt,
   })
 
@@ -43,7 +39,7 @@ export async function updateOrderTaskProgress(rawInput: unknown, ctx: ActionCont
         orderId: before.orderId,
         fromStatus: before.order.status,
         toStatus: recomputed.status,
-        note: `Task "${before.nameSnapshot}" → ${input.progressPct}%`,
+        note: `Task "${before.nameSnapshot}" → ${input.done ? 'Hoàn thành' : 'Chưa xong'}`,
         createdById: ctx.actor!.id,
         source: ctx.source,
       },
@@ -53,12 +49,12 @@ export async function updateOrderTaskProgress(rawInput: unknown, ctx: ActionCont
   await auditRepo.write({
     actorId: ctx.actor!.id,
     source: ctx.source,
-    action: 'order.update_task_progress',
+    action: 'order.set_task_done',
     entityType: 'OrderTask',
     entityId: updated.id,
-    before: { progressPct: before.progressPct, orderStatus: before.order.status },
+    before: { done: before.done, orderStatus: before.order.status },
     after: {
-      progressPct: updated.progressPct,
+      done: updated.done,
       orderStatus: recomputed?.status,
       orderProgressPct: recomputed?.progressPct,
     },

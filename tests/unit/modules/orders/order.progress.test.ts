@@ -9,15 +9,14 @@ describe('computeOrderStatus', () => {
     expect(computeOrderStatus([])).toBe('DRAFT')
   })
 
-  it('returns ACTIVE when at least one task < 100', () => {
-    expect(computeOrderStatus([{ progressPct: 0 }])).toBe('ACTIVE')
-    expect(computeOrderStatus([{ progressPct: 50 }, { progressPct: 100 }])).toBe('ACTIVE')
-    expect(computeOrderStatus([{ progressPct: 99 }, { progressPct: 100 }])).toBe('ACTIVE')
+  it('returns ACTIVE when at least one task is not done', () => {
+    expect(computeOrderStatus([{ done: false }])).toBe('ACTIVE')
+    expect(computeOrderStatus([{ done: false }, { done: true }])).toBe('ACTIVE')
   })
 
-  it('returns COMPLETED when every task is >= 100', () => {
-    expect(computeOrderStatus([{ progressPct: 100 }])).toBe('COMPLETED')
-    expect(computeOrderStatus([{ progressPct: 100 }, { progressPct: 100 }])).toBe('COMPLETED')
+  it('returns COMPLETED when every task is done', () => {
+    expect(computeOrderStatus([{ done: true }])).toBe('COMPLETED')
+    expect(computeOrderStatus([{ done: true }, { done: true }])).toBe('COMPLETED')
   })
 })
 
@@ -26,36 +25,37 @@ describe('computeOrderProgress', () => {
     expect(computeOrderProgress([])).toBe(0)
   })
 
-  it('returns the single value for one task', () => {
-    expect(computeOrderProgress([{ progressPct: 75 }])).toBe(75)
+  it('returns 0 when no task is done', () => {
+    expect(computeOrderProgress([{ done: false }])).toBe(0)
+    expect(computeOrderProgress([{ done: false }, { done: false }])).toBe(0)
   })
 
-  it('rounds the average for multiple tasks', () => {
-    // (100 + 100 + 75 + 0) / 4 = 68.75 → 69
+  it('returns the done ratio as a rounded percentage', () => {
+    // 1/4 done = 25
     expect(
       computeOrderProgress([
-        { progressPct: 100 },
-        { progressPct: 100 },
-        { progressPct: 75 },
-        { progressPct: 0 },
+        { done: true },
+        { done: false },
+        { done: false },
+        { done: false },
       ]),
-    ).toBe(69)
-    // (50 + 50) / 2 = 50
-    expect(computeOrderProgress([{ progressPct: 50 }, { progressPct: 50 }])).toBe(50)
-    // (1) / 4 = 0.25 → 0
+    ).toBe(25)
+    // 2/4 done = 50
     expect(
       computeOrderProgress([
-        { progressPct: 1 },
-        { progressPct: 0 },
-        { progressPct: 0 },
-        { progressPct: 0 },
+        { done: true },
+        { done: true },
+        { done: false },
+        { done: false },
       ]),
-    ).toBe(0)
+    ).toBe(50)
+    // 1/3 done = 33.33 → 33
+    expect(
+      computeOrderProgress([{ done: true }, { done: false }, { done: false }]),
+    ).toBe(33)
   })
 
-  it('returns 100 only when all tasks are 100', () => {
-    expect(
-      computeOrderProgress([{ progressPct: 100 }, { progressPct: 100 }]),
-    ).toBe(100)
+  it('returns 100 only when all tasks are done', () => {
+    expect(computeOrderProgress([{ done: true }, { done: true }])).toBe(100)
   })
 })

@@ -16,7 +16,7 @@ export const SetOrderTasksInput = z.object({
       taskId: z.string().uuid().nullable(),
       nameSnapshot: z.string().min(1).max(255),
       descriptionSnapshot: z.string().max(5000).nullable().optional(),
-      progressPct: z.number().int().min(0).max(100).default(0),
+      done: z.boolean().default(false),
       notes: z.string().max(2000).nullable().optional(),
     }),
   ),
@@ -67,9 +67,7 @@ export async function setOrderTasks(rawInput: unknown, ctx: ActionContext) {
       if (item.id && beforeIds.has(item.id)) {
         // Update existing.
         const beforeTask = before.find((b) => b.id === item.id)!
-        const startedAt = beforeTask.startedAt
-          ?? (item.progressPct > 0 ? new Date() : null)
-        const completedAt = item.progressPct >= 100
+        const completedAt = item.done
           ? (beforeTask.completedAt ?? new Date())
           : null
         await tx.orderTask.update({
@@ -78,28 +76,25 @@ export async function setOrderTasks(rawInput: unknown, ctx: ActionContext) {
             taskId: item.taskId,
             nameSnapshot: item.nameSnapshot,
             descriptionSnapshot: item.descriptionSnapshot ?? null,
-            progressPct: item.progressPct,
+            done: item.done,
             notes: item.notes ?? null,
             position,
-            startedAt,
             completedAt,
           },
         })
       }
       else {
         // Create new.
-        const startedAt = item.progressPct > 0 ? new Date() : null
-        const completedAt = item.progressPct >= 100 ? new Date() : null
+        const completedAt = item.done ? new Date() : null
         await tx.orderTask.create({
           data: {
             orderId: input.orderId,
             taskId: item.taskId,
             nameSnapshot: item.nameSnapshot,
             descriptionSnapshot: item.descriptionSnapshot ?? null,
-            progressPct: item.progressPct,
+            done: item.done,
             notes: item.notes ?? null,
             position,
-            startedAt,
             completedAt,
           },
         })
