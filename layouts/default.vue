@@ -9,6 +9,7 @@ const navItems = computed(() => [
   { label: t('nav.styles'), to: '/styles', icon: 'i-lucide-shirt' },
   { label: t('nav.sizes'), to: '/sizes', icon: 'i-lucide-ruler' },
   { label: t('nav.tasks'), to: '/tasks', icon: 'i-lucide-list-checks' },
+  { label: t('nav.alerts'), to: '/alerts', icon: 'i-lucide-bell' },
 ])
 
 const drawerOpen = ref(false)
@@ -66,7 +67,9 @@ const currentPageTitle = computed(() => {
             :key="item.to"
             :to="item.to"
             class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-            active-class="!bg-primary-50 dark:!bg-primary-950 !text-primary-700 dark:!text-primary-300 font-medium"
+            :class="route.path.startsWith(item.to)
+              ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium'
+              : ''"
           >
             <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
             <span class="truncate">{{ item.label }}</span>
@@ -115,7 +118,9 @@ const currentPageTitle = computed(() => {
                 :key="item.to"
                 :to="item.to"
                 class="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
-                active-class="!bg-primary-50 dark:!bg-primary-950 !text-primary-700 dark:!text-primary-300 font-medium"
+                :class="route.path.startsWith(item.to)
+                  ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'text-gray-700 dark:text-gray-300'"
               >
                 <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
                 <span>{{ item.label }}</span>

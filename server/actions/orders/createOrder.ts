@@ -7,6 +7,7 @@ import { generateOrderCode } from '../../modules/orders/order.code-gen'
 import { orderRepo } from '../../modules/orders/order.repo'
 import { sizeRepo } from '../../modules/sizes/size.repo'
 import { variantRepo } from '../../modules/styles/variant.repo'
+import { evaluateOrderAlerts } from '../../modules/alerts/alert-engine'
 import { prisma } from '../../lib/prisma'
 
 export const CreateOrderInput = z.object({
@@ -110,6 +111,8 @@ export async function createOrder(
     const warnings: string[] = []
     if (!input.expectedAt) warnings.push('Chưa có deadline')
     if (input.items.length === 0) warnings.push('Chưa có size items')
+
+    evaluateOrderAlerts(order.id).catch(() => {})
 
     return {
       order: {

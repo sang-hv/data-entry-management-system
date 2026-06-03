@@ -24,6 +24,7 @@ export default defineEventHandler(async (event) => {
         orderedTo: query.orderedTo ? new Date(String(query.orderedTo)) : undefined,
         dueBefore: query.dueBefore ? new Date(String(query.dueBefore)) : undefined,
         dueAfter: query.dueAfter ? new Date(String(query.dueAfter)) : undefined,
+        overdue: query.overdue === 'true' ? true : undefined,
         page: query.page ? Number(query.page) : undefined,
         pageSize: query.pageSize ? Number(query.pageSize) : undefined,
         sort: typeof query.sort === 'string' ? query.sort : undefined,

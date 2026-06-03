@@ -8,6 +8,7 @@ import {
 import { auditRepo } from '../../modules/audit/audit.repo'
 import { orderRepo } from '../../modules/orders/order.repo'
 import { variantRepo } from '../../modules/styles/variant.repo'
+import { evaluateOrderAlerts } from '../../modules/alerts/alert-engine'
 
 export const UpdateOrderInput = z.object({
   id: z.string().uuid(),
@@ -63,5 +64,6 @@ export async function updateOrder(rawInput: unknown, ctx: ActionContext) {
     requestId: ctx.requestId,
   })
 
+  evaluateOrderAlerts(updated.id).catch(() => {})
   return { order: updated }
 }

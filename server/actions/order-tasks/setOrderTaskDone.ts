@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma'
 import { auditRepo } from '../../modules/audit/audit.repo'
 import { orderTaskRepo } from '../../modules/order-tasks/orderTask.repo'
 import { recomputeOrderStatusAndProgress } from '../../modules/order-tasks/recompute'
+import { evaluateOrderAlerts } from '../../modules/alerts/alert-engine'
 
 export const SetOrderTaskDoneInput = z.object({
   orderTaskId: z.string().uuid(),
@@ -60,6 +61,9 @@ export async function setOrderTaskDone(rawInput: unknown, ctx: ActionContext) {
     },
     requestId: ctx.requestId,
   })
+
+  // Evaluate alerts (fire-and-forget — don't block response)
+  evaluateOrderAlerts(before.orderId).catch(() => {})
 
   return {
     task: updated,

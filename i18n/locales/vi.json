@@ -56,7 +56,8 @@
     "orders": "Đơn hàng",
     "styles": "Mẫu áo",
     "sizes": "Kích cỡ",
-    "tasks": "Công đoạn"
+    "tasks": "Công đoạn",
+    "alerts": "Cảnh báo"
   },
   "auth": {
     "login": {
@@ -68,12 +69,37 @@
   "dashboard": {
     "greeting": "Xin chào, {name}",
     "stats": {
-      "running": "Đơn đang chạy",
-      "overdue": "Đơn trễ deadline",
-      "dueSoon": "Sắp tới hạn (7d)",
-      "missingData": "Thiếu thông tin"
+      "running": "Đang chạy",
+      "overdue": "Trễ deadline",
+      "dueSoon": "Sắp tới hạn (7 ngày)",
+      "openAlerts": "Cảnh báo mở"
     },
-    "placeholderNote": "Dashboard hiện đang ở chế độ placeholder. Số liệu thật và danh sách đơn cần chú ý sẽ được bổ sung ở Milestone 5 (Alerts & Dashboard)."
+    "needsAttention": "Đơn cần chú ý",
+    "noAttentionNeeded": "Không có đơn nào cần chú ý",
+    "viewAllAlerts": "Xem tất cả cảnh báo",
+    "viewAllOrders": "Xem tất cả đơn"
+  },
+  "alerts": {
+    "title": "Cảnh báo",
+    "subtitle": "Theo dõi đơn hàng có vấn đề",
+    "noAlerts": "Không có cảnh báo nào",
+    "filterSeverity": "Mức độ",
+    "dismissBtn": "Bỏ qua",
+    "dismissReason": "Lý do bỏ qua (tùy chọn)",
+    "severity": {
+      "CRITICAL": "Nghiêm trọng",
+      "WARN": "Cảnh báo",
+      "INFO": "Thông tin"
+    },
+    "rules": {
+      "OVERDUE": "Trễ deadline",
+      "DUE_SOON_3D": "Sắp tới hạn (3 ngày)",
+      "DUE_SOON_7D": "Sắp tới hạn (7 ngày)",
+      "MISSING_DEADLINE": "Chưa có deadline",
+      "NO_ITEMS": "Chưa có size",
+      "NO_TASKS": "Chưa có quy trình",
+      "STALE_ORDER": "Đơn không cập nhật"
+    }
   },
   "sizes": {
     "title": "Kích cỡ",
@@ -129,7 +155,8 @@
       "priority": "Độ ưu tiên",
       "notes": "Ghi chú",
       "totalProgress": "Tổng tiến độ",
-      "owner": "Người phụ trách"
+      "owner": "Người phụ trách",
+      "editInfo": "Thông tin đơn hàng"
     },
     "table": {
       "code": "Mã",
@@ -145,7 +172,8 @@
       "DRAFT": "Nháp",
       "ACTIVE": "Đang chạy",
       "COMPLETED": "Hoàn thành",
-      "CANCELLED": "Đã hủy"
+      "CANCELLED": "Đã hủy",
+      "OVERDUE": "Trễ deadline"
     },
     "priority": {
       "LOW": "Thấp",
@@ -157,6 +185,8 @@
       "info": "Thông tin",
       "items": "Size & tỉ lệ",
       "tasks": "Quy trình",
+      "batches": "Đợt nhập",
+      "alerts": "Cảnh báo",
       "timeline": "Lịch sử"
     },
     "items": {
@@ -187,6 +217,39 @@
     "timeline": {
       "title": "Lịch sử thay đổi",
       "noEntries": "Chưa có thay đổi nào"
+    },
+    "batches": {
+      "title": "Đợt chốt nhập",
+      "subtitle": "Quản lý số lượng chốt nhập theo từng đợt",
+      "addBatch": "Tạo đợt mới",
+      "generateBatch": "Generate từ tỉ lệ",
+      "noBatches": "Chưa có đợt nào",
+      "batchNumber": "Đợt #{number}",
+      "batchedAt": "Ngày chốt",
+      "note": "Ghi chú",
+      "totalBatch": "Tổng đợt",
+      "totalOrder": "Tổng tất cả đợt",
+      "quantity": "Số lượng",
+      "size": "Size",
+      "deleteConfirm": "Xóa đợt #{number}?",
+      "noItems": "Chưa có size nào trong đợt",
+      "addItem": "Thêm size",
+      "applyRatio": {
+        "title": "Generate số lượng từ tỉ lệ",
+        "subtitle": "Nhân tỉ lệ với số nhân để sinh số lượng. VD: tỉ lệ [3,3,2,1,1] × 8 = [24,24,16,8,8].",
+        "multiplierLabel": "Số nhân (multiplier)",
+        "multiplierPlaceholder": "8",
+        "preview": "Xem trước",
+        "previewTitle": "Số lượng sinh ra:",
+        "noRatioWarning": "Đơn chưa có size nào có tỉ lệ > 0. Hãy khai báo size & tỉ lệ trước.",
+        "updateBatch": "Cập nhật đợt #{number}",
+        "createNew": "Tạo đợt mới",
+        "total": "Tổng:",
+        "batchedAt": "Ngày chốt",
+        "note": "Ghi chú",
+        "apply": "Áp dụng",
+        "confirm": "Xác nhận"
+      }
     },
     "actions": {
       "cancel": "Hủy đơn",

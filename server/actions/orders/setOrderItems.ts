@@ -5,6 +5,7 @@ import { prisma } from '../../lib/prisma'
 import { auditRepo } from '../../modules/audit/audit.repo'
 import { orderRepo } from '../../modules/orders/order.repo'
 import { sizeRepo } from '../../modules/sizes/size.repo'
+import { evaluateOrderAlerts } from '../../modules/alerts/alert-engine'
 
 export const SetOrderItemsInput = z.object({
   orderId: z.string().uuid(),
@@ -65,5 +66,6 @@ export async function setOrderItems(rawInput: unknown, ctx: ActionContext) {
     requestId: ctx.requestId,
   })
 
+  evaluateOrderAlerts(input.orderId).catch(() => {})
   return { items: newItems }
 }

@@ -8,6 +8,7 @@ import {
 import { prisma } from '../../lib/prisma'
 import { auditRepo } from '../../modules/audit/audit.repo'
 import { orderRepo } from '../../modules/orders/order.repo'
+import { evaluateOrderAlerts } from '../../modules/alerts/alert-engine'
 
 export const CancelOrderInput = z.object({
   id: z.string().uuid(),
@@ -56,5 +57,6 @@ export async function cancelOrder(rawInput: unknown, ctx: ActionContext) {
     requestId: ctx.requestId,
   })
 
+  evaluateOrderAlerts(input.id).catch(() => {})
   return { order: updated }
 }

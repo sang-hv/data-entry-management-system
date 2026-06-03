@@ -11,6 +11,8 @@ export interface OrderListFilter {
   orderedTo?: Date
   dueBefore?: Date
   dueAfter?: Date
+  /** Nếu true: chỉ lấy đơn có expectedAt < now và status không phải COMPLETED/CANCELLED */
+  overdue?: boolean
 }
 
 export interface OrderListPagination {
@@ -59,6 +61,10 @@ export const orderRepo = {
     if (filter.priority?.length) where.priority = { in: filter.priority }
     if (filter.styleVariantId) where.styleVariantId = filter.styleVariantId
     if (filter.ownerId) where.ownerId = filter.ownerId
+    if (filter.overdue) {
+      where.expectedAt = { lt: new Date() }
+      where.status = { notIn: ['COMPLETED', 'CANCELLED'] }
+    }
     if (filter.orderedFrom || filter.orderedTo) {
       where.orderedAt = {}
       if (filter.orderedFrom) where.orderedAt.gte = filter.orderedFrom

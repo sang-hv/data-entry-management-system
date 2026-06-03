@@ -18,15 +18,22 @@ interface OrderRow {
 
 const { t } = useI18n()
 const q = ref('')
+const debouncedQ = useDebouncedRef(q, 350)
 const statusFilter = ref<string[]>([])
 
-const { data } = await useFetch<{ items: OrderRow[], total: number }>(
+const { data, pending } = await useFetch<{ items: OrderRow[], total: number }>(
   '/api/orders',
   {
-    query: computed(() => ({
-      q: q.value || undefined,
-      status: statusFilter.value.length ? statusFilter.value.join(',') : undefined,
-    })),
+    query: computed(() => {
+      // 'OVERDUE' is a pseudo-value — maps to overdue=true query param, not a real status
+      const hasOverdue = statusFilter.value.includes('OVERDUE')
+      const realStatuses = statusFilter.value.filter((s) => s !== 'OVERDUE')
+      return {
+        q: debouncedQ.value || undefined,
+        status: realStatuses.length ? realStatuses.join(',') : undefined,
+        overdue: hasOverdue ? 'true' : undefined,
+      }
+    }),
   },
 )
 
@@ -35,6 +42,7 @@ const statusOptions = [
   { value: 'ACTIVE', label: t('orders.status.ACTIVE') },
   { value: 'COMPLETED', label: t('orders.status.COMPLETED') },
   { value: 'CANCELLED', label: t('orders.status.CANCELLED') },
+  { value: 'OVERDUE', label: t('orders.status.OVERDUE') },
 ]
 
 function formatDate(iso: string | null) {
@@ -79,6 +87,7 @@ function isOverdue(row: OrderRow) {
       <USelectMenu
         v-model="statusFilter"
         :items="statusOptions"
+        value-key="value"
         multiple
         :placeholder="t('common.labels.status')"
         class="sm:w-48"
@@ -86,6 +95,12 @@ function isOverdue(row: OrderRow) {
     </div>
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <!-- Loading skeleton -->
+      <div v-if="pending" class="p-6 flex justify-center">
+        <UIcon name="i-lucide-loader-circle" class="w-6 h-6 animate-spin text-gray-400" />
+      </div>
+
+      <template v-else>
       <!-- Mobile -->
       <div class="md:hidden divide-y divide-gray-200 dark:divide-gray-800">
         <NuxtLink
@@ -205,6 +220,7 @@ function isOverdue(row: OrderRow) {
           </tbody>
         </table>
       </div>
+      </template>
     </UCard>
   </div>
 </template>

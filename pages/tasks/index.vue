@@ -10,13 +10,14 @@ interface TaskRow {
 const toast = useToast()
 const { t } = useI18n()
 const q = ref('')
+const debouncedQ = useDebouncedRef(q, 350)
 const dialogOpen = ref(false)
 const editing = ref<TaskRow | null>(null)
 const form = reactive({ code: '', name: '', description: '' })
 const submitting = ref(false)
 
 const { data, refresh } = await useFetch<{ items: TaskRow[] }>('/api/tasks', {
-  query: { q, activeOnly: 'false' },
+  query: { q: debouncedQ, activeOnly: 'false' },
 })
 
 function openCreate() {

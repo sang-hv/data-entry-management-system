@@ -13,13 +13,14 @@ interface StyleRow {
 const toast = useToast()
 const { t } = useI18n()
 const q = ref('')
+const debouncedQ = useDebouncedRef(q, 350)
 const dialogOpen = ref(false)
 const submitting = ref(false)
 const form = reactive({ code: '', name: '', description: '' })
 
 const { data, refresh } = await useFetch<{ items: StyleRow[], total: number }>(
   '/api/styles',
-  { query: { q, activeOnly: 'false' } },
+  { query: { q: debouncedQ, activeOnly: 'false' } },
 )
 
 function openCreate() {

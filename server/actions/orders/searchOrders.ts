@@ -14,6 +14,7 @@ export const SearchOrdersInput = z.object({
   orderedTo: z.coerce.date().optional(),
   dueBefore: z.coerce.date().optional(),
   dueAfter: z.coerce.date().optional(),
+  overdue: z.coerce.boolean().optional(),
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(20),
   sort: z
@@ -35,6 +36,7 @@ export async function searchOrders(rawInput: unknown, _ctx: ActionContext) {
       orderedTo: input.orderedTo,
       dueBefore: input.dueBefore,
       dueAfter: input.dueAfter,
+      overdue: input.overdue,
     },
     {
       page: input.page,
