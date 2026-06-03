@@ -1,7 +1,5 @@
 import type { AlertRule } from './_types'
 
-const MS_14D = 14 * 86400_000
-
 export const staleOrderRule: AlertRule = {
   code: 'STALE_ORDER',
   severity: 'INFO',

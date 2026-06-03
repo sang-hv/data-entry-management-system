@@ -42,8 +42,11 @@ cp .env.example .env.local
 # 5. Apply DB schema
 pnpm prisma:migrate
 
-# 6. Seed data mẫu + admin
+# 6. Seed admin + master data (sizes, tasks)
 pnpm seed
+
+# (tùy chọn) Seed thêm styles + orders mẫu để demo
+pnpm seed -- --sample
 
 # 7. Start dev server
 pnpm dev
@@ -65,7 +68,8 @@ pnpm dev
 | `pnpm typecheck` | Vue + TypeScript type check |
 | `pnpm lint` | ESLint |
 | `pnpm test` | Chạy toàn bộ test (vitest) |
-| `pnpm seed` | Khởi tạo/reset admin + data mẫu |
+| `pnpm seed` | Admin + master data (sizes, tasks) |
+| `pnpm seed -- --sample` | + thêm styles và orders mẫu để demo |
 | `pnpm prisma:migrate` | Apply migration DB |
 | `pnpm prisma:studio` | Prisma Studio tại http://localhost:5555 |
 
@@ -80,7 +84,6 @@ Test integration (`tests/integration/**`) chạy trực tiếp trên DB dev (cù
 ```bash
 pnpm seed
 ```
-
 > **Tip:** set `SEED_ADMIN_PASSWORD` trong `.env.local` để dùng password cố định — `pnpm seed` sẽ luôn upsert admin với password đó, tiện recovery sau khi test xóa data.
 
 ---
