@@ -310,6 +310,28 @@ async function main() {
   else {
     console.log('ℹ  Bỏ qua sample data. Chạy `pnpm seed -- --sample` để seed thêm styles + orders mẫu.')
   }
+
+  await seedAiActor()
+}
+
+// ─── AI Actor (dùng cho MCP server) ──────────────────────────────────────────
+async function seedAiActor() {
+  const AI_ACTOR_EMAIL = 'ai-agent@system.local'
+
+  const aiActor = await prisma.user.upsert({
+    where: { email: AI_ACTOR_EMAIL },
+    update: {},
+    create: {
+      email: AI_ACTOR_EMAIL,
+      name: 'AI Agent',
+      passwordHash: '__NOT_USABLE__', // không thể login qua UI
+      role: 'EDITOR',
+      active: true,
+    },
+  })
+
+  console.log(`✅ AI Actor: ${aiActor.id}  ← copy vào AI_ACTOR_ID trong mcp-server/.env`)
+  return aiActor.id
 }
 
 main()
