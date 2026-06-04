@@ -52,6 +52,7 @@ export async function searchOrders(rawInput: unknown, _ctx: ActionContext) {
       code: o.code,
       status: o.status,
       priority: o.priority,
+      version: o.version,
       progressPct: o.progressPct,
       orderedAt: o.orderedAt,
       expectedAt: o.expectedAt,

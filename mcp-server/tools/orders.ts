@@ -41,7 +41,7 @@ export function registerOrderTools(server: McpServer) {
       const lines = [
         `🔍 Kết quả (${result.total} đơn tổng, trang ${page}/${Math.ceil(result.total / result.pageSize)}):`,
         '',
-        ...result.items.map(o => fmtOrderSummary(o)),
+        ...result.items.map(o => `${fmtOrderSummary(o)}\n   orderId: ${o.id} | version: ${o.version}`),
       ]
       return { content: [{ type: 'text' as const, text: lines.join('\n') }] }
     },
@@ -58,22 +58,24 @@ export function registerOrderTools(server: McpServer) {
         const ctx = await makeMcpContext()
         const { order } = await getOrderByCode({ code }, ctx)
         const o = order as {
+          id: string
           code: string
           status: string
           priority: string
+          version: number
           progressPct: number
           expectedAt?: Date | null
           orderedAt?: Date | null
           notes?: string | null
           styleVariant: { name: string; style: { code: string } }
-          tasks: Array<{ nameSnapshot: string; done: boolean; position: number }>
+          tasks: Array<{ id: string; nameSnapshot: string; done: boolean; position: number }>
           items: Array<{ size: { code: string }; ratio: number }>
           batches: Array<{ batchNumber: number }>
         }
         const taskLines = o.tasks.length > 0
           ? o.tasks
               .sort((a, b) => a.position - b.position)
-              .map(t => `   ${t.done ? '✅' : '⬜'} ${t.nameSnapshot}`)
+              .map(t => `   ${t.done ? '✅' : '⬜'} ${t.nameSnapshot}  (orderTaskId: ${t.id})`)
               .join('\n')
           : '   (chưa có task)'
         const itemLines = o.items.length > 0
@@ -89,6 +91,7 @@ export function registerOrderTools(server: McpServer) {
             styleCode: o.styleVariant.style.code,
             variantName: o.styleVariant.name,
           }),
+          `   orderId: ${o.id} | version: ${o.version}`,
           `   Ngày đặt: ${o.orderedAt ? o.orderedAt.toLocaleDateString('vi-VN') : 'N/A'}`,
           o.notes ? `   Ghi chú: ${o.notes}` : '',
           ``,

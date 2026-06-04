@@ -16,7 +16,7 @@ export function fmtPendingConfirm(entry: PendingEntry): string {
 export function fmtOrderSummary(o: {
   code: string
   status: string
-  priority: string
+  priority?: string | null
   progressPct: number
   expectedAt?: Date | null
   styleCode?: string
@@ -26,11 +26,12 @@ export function fmtOrderSummary(o: {
     ? o.expectedAt.toLocaleDateString('vi-VN')
     : 'Chưa có deadline'
   const style = o.styleCode ? `${o.styleCode} - ${o.variantName ?? ''}` : 'N/A'
+  const priorityLine = o.priority != null ? ` | Ưu tiên: ${fmtPriority(o.priority)}` : ''
   return [
     `📦 Đơn: ${o.code}`,
     `   Mẫu: ${style}`,
-    `   Trạng thái: ${fmtStatus(o.status)} | Tiến độ: ${o.progressPct}%`,
-    `   Ưu tiên: ${fmtPriority(o.priority)} | Deadline: ${deadline}`,
+    `   Trạng thái: ${fmtStatus(o.status)} | Tiến độ: ${o.progressPct}%${priorityLine}`,
+    `   Deadline: ${deadline}`,
   ].join('\n')
 }
 

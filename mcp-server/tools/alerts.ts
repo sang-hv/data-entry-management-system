@@ -21,7 +21,7 @@ export function registerAlertTools(server: McpServer) {
     async ({ orderId, severity, page, pageSize }) => {
       const ctx = await makeMcpContext()
       const result = await getActiveAlerts({ orderId, severity, page, pageSize }, ctx)
-      const items = (result as { items?: unknown[] }).items ?? (result as unknown[])
+      const items = result.items
       if (!Array.isArray(items) || items.length === 0) {
         return { content: [{ type: 'text' as const, text: '✅ Không có cảnh báo nào.' }] }
       }

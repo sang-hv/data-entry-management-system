@@ -169,9 +169,27 @@ cd .. && pnpm seed
 # 3. Tạo file env cho MCP server (không commit file này)
 cp mcp-server/.env.example mcp-server/.env
 # Điền DATABASE_URL và AI_ACTOR_ID vào mcp-server/.env
+```
 
-# 4. Build
-cd mcp-server && npm run build
+> **Lưu ý runtime:** MCP server chạy qua `tsx` (không build sang `dist/`). Lý do: code Phase 1 trong `server/` dùng CommonJS + extensionless imports, không tương thích với output ESM của `tsc`. `tsx` xử lý ranh giới CJS/ESM tự động khi chạy thẳng từ TypeScript source.
+
+### Test local (không cần OpenClaw/Telegram)
+
+```bash
+# Yêu cầu: Postgres đang chạy (docker compose up -d) + đã pnpm seed
+
+# Test các read tool (list tools + gọi dashboard/styles/orders...)
+node --import tsx mcp-server/smoke-test.mts
+
+# Test luồng ghi với pending-confirm (tự cleanup sau khi chạy)
+node --import tsx mcp-server/smoke-write.mts
+```
+
+Hoặc dùng MCP Inspector (UI trên browser):
+
+```bash
+AI_ACTOR_ID=<uuid> DATABASE_URL="postgresql://dems:dems_dev_password@localhost:5432/dems" \
+  npx @modelcontextprotocol/inspector node --import tsx mcp-server/index.ts
 ```
 
 ### Cấu hình trong OpenClaw
@@ -182,8 +200,8 @@ Thêm vào file MCP config của OpenClaw (`~/.openclaw/mcp.json` hoặc tương
 {
   "mcpServers": {
     "dems": {
-      "command": "npx",
-      "args": ["tsx", "--tsconfig", "mcp-server/tsconfig.json", "mcp-server/index.ts"],
+      "command": "node",
+      "args": ["--import", "tsx", "mcp-server/index.ts"],
       "cwd": "/absolute/path/to/data-entry-management-system",
       "env": {
         "DATABASE_URL": "postgresql://dems:dems_dev_password@localhost:5432/dems",
@@ -198,10 +216,14 @@ Thêm vào file MCP config của OpenClaw (`~/.openclaw/mcp.json` hoặc tương
 
 | Tool | Loại | Mô tả |
 |---|---|---|
+| `list_styles` | Read | Liệt kê mẫu áo (id + code + tên) |
+| `get_style` | Read | Chi tiết mẫu áo + variant kèm `styleVariantId` |
+| `list_sizes` | Read | Liệt kê size kèm `sizeId` |
+| `list_tasks` | Read | Liệt kê task quy trình kèm `taskId` |
 | `get_dashboard` | Read | Tổng quan: đang chạy, trễ, cảnh báo |
 | `get_overdue_orders` | Read | Danh sách đơn trễ deadline |
-| `search_orders` | Read | Tìm đơn theo text/status/priority |
-| `get_order` | Read | Chi tiết đơn theo mã |
+| `search_orders` | Read | Tìm đơn theo text/status/priority (kèm `orderId`+`version`) |
+| `get_order` | Read | Chi tiết đơn theo mã (kèm `orderId`, `version`, `orderTaskId`) |
 | `get_alerts` | Read | Cảnh báo đang mở |
 | `dismiss_alert` | Ghi nhẹ | Bỏ qua cảnh báo (không cần confirm) |
 | `set_task_done` | Ghi nhẹ | Tick task xong/chưa xong (không cần confirm) |

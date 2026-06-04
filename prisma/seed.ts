@@ -315,13 +315,17 @@ async function main() {
 }
 
 // ─── AI Actor (dùng cho MCP server) ──────────────────────────────────────────
-async function seedAiActor() {
-  const AI_ACTOR_EMAIL = 'ai-agent@system.local'
+// UUID cố định để AI_ACTOR_ID trong mcp-server/.env không bị đổi sau mỗi lần
+// reset DB (test integration chạy resetDb() thường xuyên).
+const AI_ACTOR_ID = '00000000-0000-4000-a000-000000000a1c'
+const AI_ACTOR_EMAIL = 'ai-agent@system.local'
 
+async function seedAiActor() {
   const aiActor = await prisma.user.upsert({
     where: { email: AI_ACTOR_EMAIL },
-    update: {},
+    update: { id: AI_ACTOR_ID },
     create: {
+      id: AI_ACTOR_ID,
       email: AI_ACTOR_EMAIL,
       name: 'AI Agent',
       passwordHash: '__NOT_USABLE__', // không thể login qua UI
