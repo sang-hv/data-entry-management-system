@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --tsconfig tsconfig.json index.ts",
-    "build": "tsc --project tsconfig.json",
-    "start": "node dist/mcp-server/index.js"
+    "start": "tsx --tsconfig tsconfig.json index.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

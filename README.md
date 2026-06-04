@@ -182,31 +182,12 @@ Thêm vào file MCP config của OpenClaw (`~/.openclaw/mcp.json` hoặc tương
 {
   "mcpServers": {
     "dems": {
-      "command": "node",
-      "args": ["/absolute/path/to/data-entry-management-system/mcp-server/dist/mcp-server/index.js"],
-      "env": {
-        "DATABASE_URL": "postgresql://dems:dems_dev_password@localhost:5432/dems",
-        "AI_ACTOR_ID": "<uuid-của-AI-actor-từ-pnpm-seed>"
-      }
-    }
-  }
-}
-```
-
-> **Lưu ý path:** Output của `tsc` nằm tại `mcp-server/dist/mcp-server/index.js` (do `rootDir: ".."` trong tsconfig).
-
-Hoặc dùng `tsx` (dev mode, không cần build trước):
-
-```json
-{
-  "mcpServers": {
-    "dems": {
       "command": "npx",
       "args": ["tsx", "--tsconfig", "mcp-server/tsconfig.json", "mcp-server/index.ts"],
       "cwd": "/absolute/path/to/data-entry-management-system",
       "env": {
         "DATABASE_URL": "postgresql://dems:dems_dev_password@localhost:5432/dems",
-        "AI_ACTOR_ID": "<uuid-của-AI-actor>"
+        "AI_ACTOR_ID": "<uuid-của-AI-actor-từ-pnpm-seed>"
       }
     }
   }
