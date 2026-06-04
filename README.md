@@ -145,3 +145,110 @@ docker exec -i dems_postgres psql -U dems dems < backup-20260604.sql
 - `docs/overview.md` — tổng quan nghiệp vụ
 - `docs/implementation-plan.md` — blueprint kỹ thuật đầy đủ (schema, action layer, conventions)
 - `docs/plans/` — plan TDD chi tiết từng milestone (M1–M6)
+
+---
+
+## Phase 2 — MCP Server (Telegram / OpenClaw)
+
+### Yêu cầu thêm
+
+- [OpenClaw](https://openclaw.ai/) self-hosted đã cài và chạy trên cùng máy
+- Telegram Bot Token (tạo qua [@BotFather](https://t.me/BotFather))
+- API Key của LLM provider (config trong OpenClaw UI)
+
+### Setup MCP Server
+
+```bash
+# 1. Cài deps
+cd mcp-server && npm install
+
+# 2. Seed AI actor (nếu chưa làm)
+cd .. && pnpm seed
+# Output sẽ in: ✅ AI Actor: <uuid>  ← copy uuid này
+
+# 3. Tạo file env cho MCP server (không commit file này)
+cp mcp-server/.env.example mcp-server/.env
+# Điền DATABASE_URL và AI_ACTOR_ID vào mcp-server/.env
+
+# 4. Build
+cd mcp-server && npm run build
+```
+
+### Cấu hình trong OpenClaw
+
+Thêm vào file MCP config của OpenClaw (`~/.openclaw/mcp.json` hoặc tương đương):
+
+```json
+{
+  "mcpServers": {
+    "dems": {
+      "command": "node",
+      "args": ["/absolute/path/to/data-entry-management-system/mcp-server/dist/mcp-server/index.js"],
+      "env": {
+        "DATABASE_URL": "postgresql://dems:dems_dev_password@localhost:5432/dems",
+        "AI_ACTOR_ID": "<uuid-của-AI-actor-từ-pnpm-seed>"
+      }
+    }
+  }
+}
+```
+
+> **Lưu ý path:** Output của `tsc` nằm tại `mcp-server/dist/mcp-server/index.js` (do `rootDir: ".."` trong tsconfig).
+
+Hoặc dùng `tsx` (dev mode, không cần build trước):
+
+```json
+{
+  "mcpServers": {
+    "dems": {
+      "command": "npx",
+      "args": ["tsx", "--tsconfig", "mcp-server/tsconfig.json", "mcp-server/index.ts"],
+      "cwd": "/absolute/path/to/data-entry-management-system",
+      "env": {
+        "DATABASE_URL": "postgresql://dems:dems_dev_password@localhost:5432/dems",
+        "AI_ACTOR_ID": "<uuid-của-AI-actor>"
+      }
+    }
+  }
+}
+```
+
+### Tools có sẵn
+
+| Tool | Loại | Mô tả |
+|---|---|---|
+| `get_dashboard` | Read | Tổng quan: đang chạy, trễ, cảnh báo |
+| `get_overdue_orders` | Read | Danh sách đơn trễ deadline |
+| `search_orders` | Read | Tìm đơn theo text/status/priority |
+| `get_order` | Read | Chi tiết đơn theo mã |
+| `get_alerts` | Read | Cảnh báo đang mở |
+| `dismiss_alert` | Ghi nhẹ | Bỏ qua cảnh báo (không cần confirm) |
+| `set_task_done` | Ghi nhẹ | Tick task xong/chưa xong (không cần confirm) |
+| `create_order` | Ghi nặng* | Tạo đơn mới |
+| `update_order` | Ghi nặng* | Cập nhật deadline/ưu tiên/ghi chú |
+| `cancel_order` | Ghi nặng* | Hủy đơn |
+| `create_batch` | Ghi nặng* | Tạo đợt chốt nhập |
+| `apply_ratio_to_batch` | Ghi nặng* | Tạo batch từ tỉ lệ × số nhân |
+| `pick_tasks` | Ghi nặng* | Pick task quy trình vào đơn |
+| `confirm_pending` | Confirm | Xác nhận thực thi pending action |
+| `cancel_pending` | Confirm | Hủy pending action |
+
+*Ghi nặng: tạo pending entry trước, hỏi xác nhận, rồi mới ghi DB.
+
+### Ví dụ chat Telegram
+
+```
+Bạn: "Có đơn nào trễ không?"
+AI: 🚨 Đơn trễ deadline (2 đơn):
+    📦 Đơn: TN150501 ...
+
+Bạn: "Tạo đơn mới mẫu AO083-TRANG KE XANH, deadline 15/8"
+AI: 📋 Xác nhận tạo đơn:
+    • Mã đơn: (tự sinh)
+    • Deadline: 2026-08-15
+    🔑 ID xác nhận: `a1b2c3d4`
+    ➡️ Dùng confirm_pending với pendingId: "a1b2c3d4"
+
+Bạn: "xác nhận"
+AI: ✅ Đã tạo đơn hàng: TN260605
+```
