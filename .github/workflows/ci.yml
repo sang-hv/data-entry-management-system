@@ -95,6 +95,13 @@ jobs:
           corepack enable >/dev/null 2>&1 || true
           pnpm install --frozen-lockfile
 
+      - name: Install MCP server dependencies
+        working-directory: ${{ env.PROJECT_DIR }}/mcp-server
+        run: |
+          source "$NVM_DIR/nvm.sh"
+          nvm use 24
+          npm install --no-fund --no-audit
+
       - name: Ensure Postgres + Adminer running
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -115,6 +122,16 @@ jobs:
         run: |
           if [ ! -f .env.production ]; then
             echo ".env.production missing on server — create it first"
+            exit 1
+          fi
+          ln -sfn .env.production .env
+
+      - name: Activate mcp-server/.env.production
+        working-directory: ${{ env.PROJECT_DIR }}/mcp-server
+        run: |
+          if [ ! -f .env.production ]; then
+            echo "mcp-server/.env.production missing on server — create it first"
+            echo "Copy mcp-server/.env.example và điền DATABASE_URL + AI_ACTOR_ID"
             exit 1
           fi
           ln -sfn .env.production .env
